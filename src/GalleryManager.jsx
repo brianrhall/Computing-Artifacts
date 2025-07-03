@@ -141,7 +141,7 @@ const ArtifactCard = ({ artifact, onEdit, onDelete }) => {
   );
 };
 
-const GalleryManager = () => {
+const GalleryManager = ({ onArtifactsUpdate }) => {
   const [artifacts, setArtifacts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
@@ -215,6 +215,13 @@ const GalleryManager = () => {
     ];
     setArtifacts(sampleData);
   }, []);
+
+  // Notify parent component when artifacts change
+  useEffect(() => {
+    if (onArtifactsUpdate) {
+      onArtifactsUpdate(artifacts);
+    }
+  }, [artifacts, onArtifactsUpdate]);
 
   const categories = ['Personal Computer', 'Mainframe', 'Mini Computer', 'Calculator', 'Terminal', 'Storage Device', 'Networking', 'Gaming Console', 'Handheld', 'Other'];
   
