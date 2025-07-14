@@ -1,7 +1,7 @@
 {
   "name": "computing-artifacts-gallery",
   "version": "1.0.0",
-  "description": "Gallery manager for computing artifacts",
+  "description": "Gallery manager for computing artifacts with Firebase authentication",
   "homepage": ".",
   "scripts": {
     "start": "react-scripts start",
@@ -13,7 +13,8 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",
-    "lucide-react": "^0.263.1"
+    "lucide-react": "^0.263.1",
+    "firebase": "^10.7.1"
   },
   "devDependencies": {
     "tailwindcss": "^3.3.0",
