@@ -107,14 +107,6 @@ service cloud.firestore {
 2. In Firestore, find their user document
 3. Add/update the `role` field to `"admin"`
 
-## Demo Credentials
-
-The app includes mock authentication for testing:
-- **Admin**: admin@gallery.com / admin123
-- **Visitor**: visitor@gallery.com / visitor123
-
-**Note**: These only work with mock authentication. For production, use Firebase authentication.
-
 ## Technologies Used
 
 - **React** - UI framework
