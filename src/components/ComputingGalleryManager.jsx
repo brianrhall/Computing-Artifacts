@@ -1,3 +1,29 @@
+// Add these imports at the top
+import { auth, googleProvider, db } from '../firebase';
+import { 
+  signInWithEmailAndPassword, 
+  signInWithPopup, 
+  signOut, 
+  onAuthStateChanged,
+  createUserWithEmailAndPassword 
+} from 'firebase/auth';
+import { 
+  collection, 
+  doc, 
+  getDoc, 
+  setDoc, 
+  getDocs, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc,
+  query,
+  orderBy 
+} from 'firebase/firestore';
+
+// For image storage
+import { storage } from '../firebase';  // or wherever your firebase.js is located
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+
 import React, { useState, useEffect } from 'react';
 import { Camera, Edit2, Trash2, Plus, Search, Filter, Save, X, CheckCircle, Clock, DollarSign, Grid, List, LogIn, LogOut, User, Shield } from 'lucide-react';
 
@@ -18,6 +44,9 @@ const ComputingGalleryManager = () => {
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterGroup, setFilterGroup] = useState('all');
   const [viewMode, setViewMode] = useState('grid');
+
+  // Add this state at the top with other states
+  const [uploading, setUploading] = useState(false);
   
   const categories = [
     'Mainframe', 'Minicomputer', 'Microcomputer', 'Personal Computer',
@@ -50,99 +79,139 @@ const ComputingGalleryManager = () => {
     images: []
   });
 
-  // Mock authentication (replace with Firebase auth)
-  const handleLogin = () => {
-    setAuthError('');
+// Real Firebase authentication
+const handleLogin = async () => {
+  setAuthError('');
+  
+  try {
+    const userCredential = await signInWithEmailAndPassword(
+      auth, 
+      loginData.email, 
+      loginData.password
+    );
     
-    // Mock authentication - replace with Firebase auth
-    if (loginData.email === 'admin@gallery.com' && loginData.password === 'admin123') {
-      setUser({ email: loginData.email, role: 'admin' });
-      setIsAdmin(true);
-      setShowLoginForm(false);
-      setLoginData({ email: '', password: '' });
-    } else if (loginData.email === 'visitor@gallery.com' && loginData.password === 'visitor123') {
-      setUser({ email: loginData.email, role: 'visitor' });
-      setIsAdmin(false);
-      setShowLoginForm(false);
-      setLoginData({ email: '', password: '' });
-    } else {
-      setAuthError('Invalid email or password');
-    }
-  };
-
-  // Mock Google authentication (replace with Firebase Google auth)
-  const handleGoogleLogin = () => {
-    setAuthError('');
+    // Get user role from Firestore
+    const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
+    const userData = userDoc.data();
     
-    // Mock Google authentication - replace with Firebase auth
-    // In production, this would use firebase.auth().signInWithPopup(googleProvider)
+    setUser({
+      uid: userCredential.user.uid,
+      email: userCredential.user.email,
+      displayName: userCredential.user.displayName,
+      photoURL: userCredential.user.photoURL,
+      role: userData?.role || 'visitor'
+    });
     
-    // Simulate Google login - for demo, we'll create a mock Google user as admin
-    const mockGoogleUser = {
-      email: 'user@gmail.com',
-      displayName: 'Google User',
-      photoURL: 'https://ui-avatars.com/api/?name=Google+User&background=4285f4&color=fff',
-      role: 'admin' // In production, check Firestore or custom claims for role
-    };
-    
-    setUser(mockGoogleUser);
-    setIsAdmin(true);
+    setIsAdmin(userData?.role === 'admin');
     setShowLoginForm(false);
     setLoginData({ email: '', password: '' });
-  };
+  } catch (error) {
+    setAuthError(error.message);
+  }
+};
 
-  const handleLogout = () => {
+// Real Google authentication
+const handleGoogleLogin = async () => {
+  setAuthError('');
+  
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    const user = result.user;
+    
+    // Check if user exists in Firestore
+    const userDoc = await getDoc(doc(db, 'users', user.uid));
+    
+    if (!userDoc.exists()) {
+      // First time user - create user document
+      await setDoc(doc(db, 'users', user.uid), {
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+        role: 'visitor', // Default role
+        createdAt: new Date()
+      });
+    }
+    
+    const userData = userDoc.exists() ? userDoc.data() : { role: 'visitor' };
+    
+    setUser({
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName,
+      photoURL: user.photoURL,
+      role: userData.role
+    });
+    
+    setIsAdmin(userData.role === 'admin');
+    setShowLoginForm(false);
+  } catch (error) {
+    setAuthError(error.message);
+  }
+};
+
+// Real logout
+const handleLogout = async () => {
+  try {
+    await signOut(auth);
     setUser(null);
     setIsAdmin(false);
-  };
+  } catch (error) {
+    console.error('Logout error:', error);
+  }
+};
 
-  // Load saved data on mount
-  useEffect(() => {
-    const savedData = [
-      {
-        id: 1,
-        name: 'Apple II',
-        category: 'Personal Computer',
-        manufacturer: 'Apple',
-        model: 'II',
-        year: '1977',
-        os: 'Apple DOS',
-        description: 'One of the first mass-produced microcomputers',
-        condition: 'Good',
-        displayGroup: 'Personal Computer Revolution',
-        location: 'Display Case A',
-        value: '2500',
-        acquisitionDate: '2023-05-15',
-        donor: 'John Smith',
-        status: 'Complete',
-        priority: 'High',
-        notes: 'Fully functional with original monitor',
-        images: []
-      },
-      {
-        id: 2,
-        name: 'IBM System/360',
-        category: 'Mainframe',
-        manufacturer: 'IBM',
-        model: 'System/360 Model 30',
-        year: '1965',
-        os: 'OS/360',
-        description: 'Revolutionary mainframe computer system',
-        condition: 'Fair',
-        displayGroup: 'Early Computing Era',
-        location: 'Storage Room B',
-        value: '15000',
-        acquisitionDate: '2022-11-20',
-        donor: 'Tech Museum Foundation',
-        status: 'In Progress',
-        priority: 'Medium',
-        notes: 'Needs restoration work',
-        images: []
-      }
-    ];
-    setArtifacts(savedData);
-    setFilteredArtifacts(savedData);
-  }, []);
+// Add auth state listener in useEffect
+useEffect(() => {
+  const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      // User is signed in
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      const userData = userDoc.data();
+      
+      setUser({
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+        role: userData?.role || 'visitor'
+      });
+      
+      setIsAdmin(userData?.role === 'admin');
+    } else {
+      // User is signed out
+      setUser(null);
+      setIsAdmin(false);
+    }
+  });
+  
+  return () => unsubscribe();
+}, []);
+
+// Load artifacts from Firestore
+useEffect(() => {
+  const loadArtifacts = async () => {
+    try {
+      const q = query(collection(db, 'artifacts'), orderBy('createdAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+      const artifactsData = [];
+      
+      querySnapshot.forEach((doc) => {
+        artifactsData.push({ id: doc.id, ...doc.data() });
+      });
+      
+      setArtifacts(artifactsData);
+      setFilteredArtifacts(artifactsData);
+    } catch (error) {
+      console.error('Error loading artifacts:', error);
+      // Fallback to sample data if Firestore fails
+      const savedData = [/* your sample data */];
+      setArtifacts(savedData);
+      setFilteredArtifacts(savedData);
+    }
+  };
+  
+  loadArtifacts();
+}, []);
 
   // Filter artifacts based on search and filters
   useEffect(() => {
@@ -168,24 +237,43 @@ const ComputingGalleryManager = () => {
     setFilteredArtifacts(filtered);
   }, [searchTerm, filterCategory, filterGroup, artifacts]);
 
-  const handleSave = () => {
-    if (!formData.name || !formData.category || !formData.displayGroup) {
-      alert('Please fill in all required fields (Name, Category, Display Group)');
-      return;
-    }
-    
+// Update handleSave to use Firestore
+const handleSave = async () => {
+  if (!formData.name || !formData.category || !formData.displayGroup) {
+    alert('Please fill in all required fields (Name, Category, Display Group)');
+    return;
+  }
+  
+  try {
     if (editingId) {
+      // Update existing artifact
+      await updateDoc(doc(db, 'artifacts', editingId), {
+        ...formData,
+        updatedAt: new Date()
+      });
+      
       const updated = artifacts.map(a => 
         a.id === editingId ? { ...formData, id: editingId } : a
       );
       setArtifacts(updated);
     } else {
-      const newArtifact = { ...formData, id: Date.now() };
+      // Add new artifact
+      const docRef = await addDoc(collection(db, 'artifacts'), {
+        ...formData,
+        createdAt: new Date(),
+        createdBy: user?.uid || 'anonymous'
+      });
+      
+      const newArtifact = { ...formData, id: docRef.id };
       setArtifacts([...artifacts, newArtifact]);
     }
     
     resetForm();
-  };
+  } catch (error) {
+    console.error('Error saving artifact:', error);
+    alert('Error saving artifact. Please try again.');
+  }
+};
 
   const resetForm = () => {
     setFormData({
@@ -204,26 +292,87 @@ const ComputingGalleryManager = () => {
     setShowForm(true);
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm('Are you sure you want to delete this artifact?')) {
+const handleDelete = async (id) => {
+  if (window.confirm('Are you sure you want to delete this artifact?')) {
+    try {
+      // Find the artifact to get its images
+      const artifactToDelete = artifacts.find(a => a.id === id);
+      
+      // Delete images from Firebase Storage
+      if (artifactToDelete?.images && artifactToDelete.images.length > 0) {
+        for (const imageUrl of artifactToDelete.images) {
+          try {
+            // Extract the path from the URL
+            const imageRef = ref(storage, imageUrl);
+            await deleteObject(imageRef);
+          } catch (error) {
+            console.error('Error deleting image:', error);
+            // Continue even if image deletion fails
+          }
+        }
+      }
+      
+      // Delete from Firestore
+      await deleteDoc(doc(db, 'artifacts', id));
       setArtifacts(artifacts.filter(a => a.id !== id));
+    } catch (error) {
+      console.error('Error deleting artifact:', error);
+      alert('Error deleting artifact. Please try again.');
     }
-  };
+  }
+};
 
-  const handleImageUpload = (e) => {
-    const files = Array.from(e.target.files);
-    const readers = files.map(file => {
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.readAsDataURL(file);
-      });
+// Updated image upload handler using Firebase Storage
+const handleImageUpload = async (e) => {
+  const files = Array.from(e.target.files);
+  const uploadedUrls = [];
+  
+  try {
+    // Show loading state (optional)
+    // setUploading(true);
+    
+    for (const file of files) {
+      // Create a unique filename
+      const timestamp = Date.now();
+      const filename = `artifacts/${timestamp}_${file.name}`;
+      
+      // Create storage reference
+      const storageRef = ref(storage, filename);
+      
+      // Upload file
+      const snapshot = await uploadBytes(storageRef, file);
+      
+      // Get download URL
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      uploadedUrls.push(downloadURL);
+    }
+    
+    // Update form data with Firebase URLs instead of base64
+    setFormData({ 
+      ...formData, 
+      images: [...formData.images, ...uploadedUrls] 
     });
     
-    Promise.all(readers).then(images => {
-      setFormData({ ...formData, images: [...formData.images, ...images] });
-    });
-  };
+  } catch (error) {
+    console.error('Error uploading images:', error);
+    alert('Error uploading images. Please try again.');
+  } finally {
+    // setUploading(false);
+  }
+};
+
+// Function to remove image from form (but not from Firebase Storage yet)
+const removeImage = (index) => {
+  const newImages = formData.images.filter((_, i) => i !== index);
+  setFormData({...formData, images: newImages});
+  
+  // Note: We don't delete from Firebase Storage here because:
+  // 1. The user might cancel the form without saving
+  // 2. For edited artifacts, we want to keep the images until save
+  // The actual Firebase Storage deletion happens when:
+  // - The artifact is deleted entirely (in handleDelete)
+  // - Or you could track removed images and delete them on save
+};
 
   const getStatusIcon = (status) => {
     switch(status) {
@@ -290,14 +439,7 @@ const ComputingGalleryManager = () => {
             </div>
           </div>
           
-          {/* Demo Credentials Notice */}
-          {!user && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm">
-              <p className="text-blue-800 font-medium mb-1">Demo Credentials:</p>
-              <p className="text-blue-700">Admin: admin@gallery.com / admin123</p>
-              <p className="text-blue-700">Visitor: visitor@gallery.com / visitor123</p>
-            </div>
-          )}
+
         </header>
 
         {/* Controls */}
@@ -875,16 +1017,13 @@ const ComputingGalleryManager = () => {
                             <img src={img} alt="" className="w-full h-20 sm:h-24 object-cover rounded" />
                             <button
                               type="button"
-                              onClick={() => {
-                                const newImages = formData.images.filter((_, i) => i !== idx);
-                                setFormData({...formData, images: newImages});
-                              }}
+                              onClick={() => removeImage(idx)}
                               className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
                             >
-                              <X className="w-3 h-3" />
+                            <X className="w-3 h-3" />
                             </button>
                           </div>
-                        ))}
+                      ))}
                       </div>
                     )}
                   </div>
@@ -900,13 +1039,28 @@ const ComputingGalleryManager = () => {
                   >
                     Cancel
                   </button>
-                  <button
-                    onClick={handleSave}
-                    className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Save className="w-4 h-4" />
-                    {editingId ? 'Update' : 'Save'} Artifact
-                  </button>
+                  // Then in your form, disable the save button while uploading:
+<button
+  onClick={handleSave}
+  disabled={uploading}
+  className={`w-full sm:w-auto px-4 py-2 ${
+    uploading 
+      ? 'bg-gray-400 cursor-not-allowed' 
+      : 'bg-blue-600 hover:bg-blue-700'
+  } text-white rounded-lg transition-colors flex items-center justify-center gap-2`}
+>
+  {uploading ? (
+    <>
+      <Clock className="w-4 h-4 animate-spin" />
+      Uploading...
+    </>
+  ) : (
+    <>
+      <Save className="w-4 h-4" />
+      {editingId ? 'Update' : 'Save'} Artifact
+    </>
+  )}
+</button>
                 </div>
               </div>
             </div>
