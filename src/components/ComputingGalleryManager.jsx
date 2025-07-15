@@ -1,11 +1,15 @@
-// Add these imports at the top
-import { auth, googleProvider, db } from '../firebase';
+import React, { useState, useEffect } from 'react';
+import { Camera, Edit2, Trash2, Plus, Search, Filter, Save, X, CheckCircle, Clock, DollarSign, Grid, List, LogIn, LogOut, User, Shield } from 'lucide-react';
+
+// Firebase imports
+import { auth, googleProvider, db, storage } from '../firebase';
 import { 
   signInWithEmailAndPassword, 
   signInWithPopup, 
   signOut, 
   onAuthStateChanged,
-  createUserWithEmailAndPassword 
+  createUserWithEmailAndPassword,
+  updateProfile
 } from 'firebase/auth';
 import { 
   collection, 
@@ -19,13 +23,7 @@ import {
   query,
   orderBy 
 } from 'firebase/firestore';
-
-// For image storage
-import { storage } from '../firebase';  // or wherever your firebase.js is located
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-
-import React, { useState, useEffect } from 'react';
-import { Camera, Edit2, Trash2, Plus, Search, Filter, Save, X, CheckCircle, Clock, DollarSign, Grid, List, LogIn, LogOut, User, Shield } from 'lucide-react';
 
 const ComputingGalleryManager = () => {
   // Authentication states
@@ -44,8 +42,6 @@ const ComputingGalleryManager = () => {
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterGroup, setFilterGroup] = useState('all');
   const [viewMode, setViewMode] = useState('grid');
-
-  // Add this state at the top with other states
   const [uploading, setUploading] = useState(false);
   
   const categories = [
@@ -79,139 +75,175 @@ const ComputingGalleryManager = () => {
     images: []
   });
 
-// Real Firebase authentication
-const handleLogin = async () => {
-  setAuthError('');
-  
-  try {
-    const userCredential = await signInWithEmailAndPassword(
-      auth, 
-      loginData.email, 
-      loginData.password
-    );
+  // Real Firebase authentication
+  const handleLogin = async () => {
+    setAuthError('');
     
-    // Get user role from Firestore
-    const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
-    const userData = userDoc.data();
-    
-    setUser({
-      uid: userCredential.user.uid,
-      email: userCredential.user.email,
-      displayName: userCredential.user.displayName,
-      photoURL: userCredential.user.photoURL,
-      role: userData?.role || 'visitor'
-    });
-    
-    setIsAdmin(userData?.role === 'admin');
-    setShowLoginForm(false);
-    setLoginData({ email: '', password: '' });
-  } catch (error) {
-    setAuthError(error.message);
-  }
-};
-
-// Real Google authentication
-const handleGoogleLogin = async () => {
-  setAuthError('');
-  
-  try {
-    const result = await signInWithPopup(auth, googleProvider);
-    const user = result.user;
-    
-    // Check if user exists in Firestore
-    const userDoc = await getDoc(doc(db, 'users', user.uid));
-    
-    if (!userDoc.exists()) {
-      // First time user - create user document
-      await setDoc(doc(db, 'users', user.uid), {
-        email: user.email,
-        displayName: user.displayName,
-        photoURL: user.photoURL,
-        role: 'visitor', // Default role
-        createdAt: new Date()
+    try {
+      const userCredential = await signInWithEmailAndPassword(
+        auth, 
+        loginData.email, 
+        loginData.password
+      );
+      
+      // Check/Create user document
+      const userDocRef = doc(db, 'users', userCredential.user.uid);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (!userDoc.exists()) {
+        // Create user document if it doesn't exist
+        console.log('Creating new user document for:', userCredential.user.email);
+        await setDoc(userDocRef, {
+          email: userCredential.user.email,
+          displayName: userCredential.user.displayName || userCredential.user.email,
+          role: 'visitor',
+          createdAt: new Date()
+        });
+      }
+      
+      const userData = userDoc.exists() ? userDoc.data() : { role: 'visitor' };
+      
+      setUser({
+        uid: userCredential.user.uid,
+        email: userCredential.user.email,
+        displayName: userCredential.user.displayName,
+        photoURL: userCredential.user.photoURL,
+        role: userData?.role || 'visitor'
       });
+      
+      setIsAdmin(userData?.role === 'admin');
+      setShowLoginForm(false);
+      setLoginData({ email: '', password: '' });
+    } catch (error) {
+      console.error('Login error:', error);
+      setAuthError(error.message);
     }
-    
-    const userData = userDoc.exists() ? userDoc.data() : { role: 'visitor' };
-    
-    setUser({
-      uid: user.uid,
-      email: user.email,
-      displayName: user.displayName,
-      photoURL: user.photoURL,
-      role: userData.role
-    });
-    
-    setIsAdmin(userData.role === 'admin');
-    setShowLoginForm(false);
-  } catch (error) {
-    setAuthError(error.message);
-  }
-};
+  };
 
-// Real logout
-const handleLogout = async () => {
-  try {
-    await signOut(auth);
-    setUser(null);
-    setIsAdmin(false);
-  } catch (error) {
-    console.error('Logout error:', error);
-  }
-};
-
-// Add auth state listener in useEffect
-useEffect(() => {
-  const unsubscribe = onAuthStateChanged(auth, async (user) => {
-    if (user) {
-      // User is signed in
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      const userData = userDoc.data();
+  // Real Google authentication
+  const handleGoogleLogin = async () => {
+    setAuthError('');
+    
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      
+      // Check if user document exists
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (!userDoc.exists()) {
+        // First time user - create user document
+        console.log('Creating new user document for:', user.email);
+        await setDoc(userDocRef, {
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+          role: 'visitor', // Default role
+          createdAt: new Date()
+        });
+      }
+      
+      const userData = userDoc.exists() ? userDoc.data() : { role: 'visitor' };
       
       setUser({
         uid: user.uid,
         email: user.email,
         displayName: user.displayName,
         photoURL: user.photoURL,
-        role: userData?.role || 'visitor'
+        role: userData.role || 'visitor'
       });
       
-      setIsAdmin(userData?.role === 'admin');
-    } else {
-      // User is signed out
-      setUser(null);
-      setIsAdmin(false);
-    }
-  });
-  
-  return () => unsubscribe();
-}, []);
-
-// Load artifacts from Firestore
-useEffect(() => {
-  const loadArtifacts = async () => {
-    try {
-      const q = query(collection(db, 'artifacts'), orderBy('createdAt', 'desc'));
-      const querySnapshot = await getDocs(q);
-      const artifactsData = [];
-      
-      querySnapshot.forEach((doc) => {
-        artifactsData.push({ id: doc.id, ...doc.data() });
-      });
-      
-      setArtifacts(artifactsData);
-      setFilteredArtifacts(artifactsData);
+      setIsAdmin(userData.role === 'admin');
+      setShowLoginForm(false);
     } catch (error) {
-      console.error('Error loading artifacts:', error);
-      // Fallback to sample data if Firestore fails
-      const savedData = [/* your sample data */];
-      setArtifacts(savedData);
-      setFilteredArtifacts(savedData);
+      console.error('Google login error:', error);
+      setAuthError(error.message);
     }
   };
-  
-  loadArtifacts();
-}, []);
+
+  // Real logout
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setUser(null);
+      setIsAdmin(false);
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
+  // Add auth state listener in useEffect
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        console.log('Auth state changed - user signed in:', user.email);
+        
+        // Check if user document exists
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
+        
+        if (!userDoc.exists()) {
+          // Create user document if signing in for first time
+          console.log('Creating user document for existing auth user');
+          await setDoc(userDocRef, {
+            email: user.email,
+            displayName: user.displayName || user.email,
+            photoURL: user.photoURL || null,
+            role: 'visitor',
+            createdAt: new Date()
+          });
+        }
+        
+        const userData = userDoc.exists() ? userDoc.data() : { role: 'visitor' };
+        
+        setUser({
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+          role: userData?.role || 'visitor'
+        });
+        
+        setIsAdmin(userData?.role === 'admin');
+      } else {
+        setUser(null);
+        setIsAdmin(false);
+      }
+    });
+    
+    return () => unsubscribe();
+  }, []);
+
+  // Load artifacts from Firestore
+  useEffect(() => {
+    const loadArtifacts = async () => {
+      try {
+        const q = query(collection(db, 'artifacts'), orderBy('createdAt', 'desc'));
+        const querySnapshot = await getDocs(q);
+        const artifactsData = [];
+        
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          artifactsData.push({ 
+            id: doc.id, 
+            ...data,
+            images: data.images || [] // Ensure images is always an array
+          });
+        });
+        
+        setArtifacts(artifactsData);
+        setFilteredArtifacts(artifactsData);
+      } catch (error) {
+        console.error('Error loading artifacts:', error);
+        // Fallback to empty array if Firestore fails
+        setArtifacts([]);
+        setFilteredArtifacts([]);
+      }
+    };
+    
+    loadArtifacts();
+  }, []);
 
   // Filter artifacts based on search and filters
   useEffect(() => {
@@ -237,43 +269,118 @@ useEffect(() => {
     setFilteredArtifacts(filtered);
   }, [searchTerm, filterCategory, filterGroup, artifacts]);
 
-// Update handleSave to use Firestore
-const handleSave = async () => {
-  if (!formData.name || !formData.category || !formData.displayGroup) {
-    alert('Please fill in all required fields (Name, Category, Display Group)');
-    return;
-  }
-  
-  try {
-    if (editingId) {
-      // Update existing artifact
-      await updateDoc(doc(db, 'artifacts', editingId), {
-        ...formData,
-        updatedAt: new Date()
+  // Updated image upload handler using Firebase Storage
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+    
+    setUploading(true);
+    
+    try {
+      const uploadPromises = files.map(async (file) => {
+        // Create a unique filename
+        const timestamp = Date.now();
+        const randomString = Math.random().toString(36).substring(7);
+        const sanitizedName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
+        const filename = `artifacts/${timestamp}_${randomString}_${sanitizedName}`;
+        
+        // Create storage reference
+        const storageRef = ref(storage, filename);
+        
+        // Upload file
+        const snapshot = await uploadBytes(storageRef, file);
+        
+        // Get download URL
+        const downloadURL = await getDownloadURL(snapshot.ref);
+        return downloadURL;
       });
       
-      const updated = artifacts.map(a => 
-        a.id === editingId ? { ...formData, id: editingId } : a
-      );
-      setArtifacts(updated);
-    } else {
-      // Add new artifact
-      const docRef = await addDoc(collection(db, 'artifacts'), {
-        ...formData,
-        createdAt: new Date(),
-        createdBy: user?.uid || 'anonymous'
-      });
+      // Wait for all uploads to complete
+      const uploadedUrls = await Promise.all(uploadPromises);
       
-      const newArtifact = { ...formData, id: docRef.id };
-      setArtifacts([...artifacts, newArtifact]);
+      // Update form data with Firebase URLs
+      setFormData(prevData => ({ 
+        ...prevData, 
+        images: [...(prevData.images || []), ...uploadedUrls] 
+      }));
+      
+      // Clear the file input
+      e.target.value = '';
+      
+    } catch (error) {
+      console.error('Error uploading images:', error);
+      alert('Error uploading images. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Function to remove image from form (but not from Firebase Storage yet)
+  const removeImage = (index) => {
+    setFormData(prevData => ({
+      ...prevData,
+      images: prevData.images.filter((_, i) => i !== index)
+    }));
+  };
+
+  // Update handleSave to use Firestore
+  const handleSave = async () => {
+    if (!formData.name || !formData.category || !formData.displayGroup) {
+      alert('Please fill in all required fields (Name, Category, Display Group)');
+      return;
     }
     
-    resetForm();
-  } catch (error) {
-    console.error('Error saving artifact:', error);
-    alert('Error saving artifact. Please try again.');
-  }
-};
+    try {
+      const artifactData = {
+        name: formData.name,
+        category: formData.category,
+        manufacturer: formData.manufacturer || '',
+        model: formData.model || '',
+        year: formData.year || '',
+        os: formData.os || '',
+        description: formData.description || '',
+        condition: formData.condition || '',
+        displayGroup: formData.displayGroup,
+        location: formData.location || '',
+        value: formData.value || '',
+        acquisitionDate: formData.acquisitionDate || '',
+        donor: formData.donor || '',
+        status: formData.status || 'To Do',
+        priority: formData.priority || 'Medium',
+        notes: formData.notes || '',
+        images: formData.images || [],
+        updatedAt: new Date()
+      };
+      
+      if (editingId) {
+        // Update existing artifact
+        await updateDoc(doc(db, 'artifacts', editingId), artifactData);
+        
+        // Update local state
+        setArtifacts(prevArtifacts => 
+          prevArtifacts.map(a => 
+            a.id === editingId ? { ...artifactData, id: editingId } : a
+          )
+        );
+      } else {
+        // Add new artifact
+        artifactData.createdAt = new Date();
+        artifactData.createdBy = user?.uid || 'anonymous';
+        
+        const docRef = await addDoc(collection(db, 'artifacts'), artifactData);
+        
+        const newArtifact = { ...artifactData, id: docRef.id };
+        setArtifacts(prevArtifacts => [...prevArtifacts, newArtifact]);
+      }
+      
+      resetForm();
+      alert('Artifact saved successfully!');
+      
+    } catch (error) {
+      console.error('Error saving artifact:', error);
+      alert('Error saving artifact. Please try again.');
+    }
+  };
 
   const resetForm = () => {
     setFormData({
@@ -284,95 +391,63 @@ const handleSave = async () => {
     });
     setShowForm(false);
     setEditingId(null);
+    setUploading(false);
   };
 
   const handleEdit = (artifact) => {
-    setFormData(artifact);
+    // Ensure all fields have values, especially images
+    setFormData({
+      name: artifact.name || '',
+      category: artifact.category || '',
+      manufacturer: artifact.manufacturer || '',
+      model: artifact.model || '',
+      year: artifact.year || '',
+      os: artifact.os || '',
+      description: artifact.description || '',
+      condition: artifact.condition || '',
+      displayGroup: artifact.displayGroup || '',
+      location: artifact.location || '',
+      value: artifact.value || '',
+      acquisitionDate: artifact.acquisitionDate || '',
+      donor: artifact.donor || '',
+      status: artifact.status || 'To Do',
+      priority: artifact.priority || 'Medium',
+      notes: artifact.notes || '',
+      images: artifact.images || []
+    });
     setEditingId(artifact.id);
     setShowForm(true);
   };
 
-const handleDelete = async (id) => {
-  if (window.confirm('Are you sure you want to delete this artifact?')) {
-    try {
-      // Find the artifact to get its images
-      const artifactToDelete = artifacts.find(a => a.id === id);
-      
-      // Delete images from Firebase Storage
-      if (artifactToDelete?.images && artifactToDelete.images.length > 0) {
-        for (const imageUrl of artifactToDelete.images) {
-          try {
-            // Extract the path from the URL
-            const imageRef = ref(storage, imageUrl);
-            await deleteObject(imageRef);
-          } catch (error) {
-            console.error('Error deleting image:', error);
-            // Continue even if image deletion fails
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this artifact?')) {
+      try {
+        // Find the artifact to get its images
+        const artifactToDelete = artifacts.find(a => a.id === id);
+        
+        // Delete images from Firebase Storage
+        if (artifactToDelete?.images && artifactToDelete.images.length > 0) {
+          for (const imageUrl of artifactToDelete.images) {
+            try {
+              // Extract the path from the URL
+              const imageRef = ref(storage, imageUrl);
+              await deleteObject(imageRef);
+            } catch (error) {
+              console.error('Error deleting image:', error);
+              // Continue even if image deletion fails
+            }
           }
         }
+        
+        // Delete from Firestore
+        await deleteDoc(doc(db, 'artifacts', id));
+        setArtifacts(artifacts.filter(a => a.id !== id));
+      } catch (error) {
+        console.error('Error deleting artifact:', error);
+        alert('Error deleting artifact. Please try again.');
       }
-      
-      // Delete from Firestore
-      await deleteDoc(doc(db, 'artifacts', id));
-      setArtifacts(artifacts.filter(a => a.id !== id));
-    } catch (error) {
-      console.error('Error deleting artifact:', error);
-      alert('Error deleting artifact. Please try again.');
     }
-  }
-};
-
-// Updated image upload handler using Firebase Storage
-const handleImageUpload = async (e) => {
-  const files = Array.from(e.target.files);
-  const uploadedUrls = [];
-  
-  try {
-    // Show loading state (optional)
-    // setUploading(true);
-    
-    for (const file of files) {
-      // Create a unique filename
-      const timestamp = Date.now();
-      const filename = `artifacts/${timestamp}_${file.name}`;
-      
-      // Create storage reference
-      const storageRef = ref(storage, filename);
-      
-      // Upload file
-      const snapshot = await uploadBytes(storageRef, file);
-      
-      // Get download URL
-      const downloadURL = await getDownloadURL(snapshot.ref);
-      uploadedUrls.push(downloadURL);
-    }
-    
-    // Update form data with Firebase URLs instead of base64
-    setFormData({ 
-      ...formData, 
-      images: [...formData.images, ...uploadedUrls] 
-    });
-    
-  } catch (error) {
-    console.error('Error uploading images:', error);
-    alert('Error uploading images. Please try again.');
-  } finally {
-    // setUploading(false);
-  }
-};
-
-// Function to remove image from form (but not from Firebase Storage yet)
-const removeImage = (index) => {
-  const newImages = formData.images.filter((_, i) => i !== index);
-  setFormData({...formData, images: newImages});
-  
-  // Note: We don't delete from Firebase Storage here because:
-  // 1. The user might cancel the form without saving
-  // 2. For edited artifacts, we want to keep the images until save
-  // The actual Firebase Storage deletion happens when:
-  // - The artifact is deleted entirely (in handleDelete)
-  // - Or you could track removed images and delete them on save
-};
+  };
 
   const getStatusIcon = (status) => {
     switch(status) {
@@ -438,15 +513,6 @@ const removeImage = (index) => {
               )}
             </div>
           </div>
-          
-          {/* Demo Credentials Notice */}
-          {!user && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm">
-              <p className="text-blue-800 font-medium mb-1">Demo Credentials:</p>
-              <p className="text-blue-700">Admin: admin@gallery.com / admin123</p>
-              <p className="text-blue-700">Visitor: visitor@gallery.com / visitor123</p>
-            </div>
-          )}
         </header>
 
         {/* Controls */}
@@ -728,10 +794,9 @@ const removeImage = (index) => {
                 </button>
                 
                 <div className="bg-gray-50 rounded-lg p-3 text-sm">
-                  <p className="text-gray-600 font-medium mb-1">Demo Accounts:</p>
-                  <p className="text-gray-600">Admin: admin@gallery.com / admin123</p>
-                  <p className="text-gray-600">Visitor: visitor@gallery.com / visitor123</p>
-                  <p className="text-gray-600 mt-1">Google Sign-In: Creates admin account</p>
+                  <p className="text-gray-600 font-medium mb-1">Note:</p>
+                  <p className="text-gray-600">Google Sign-In creates a visitor account by default.</p>
+                  <p className="text-gray-600 mt-1">Contact admin for elevated permissions.</p>
                 </div>
               </div>
             </div>
@@ -1015,24 +1080,38 @@ const removeImage = (index) => {
                       multiple
                       accept="image/*"
                       onChange={handleImageUpload}
-                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      disabled={uploading}
+                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm disabled:opacity-50"
                     />
-                    {formData.images.length > 0 && (
+                    {uploading && (
+                      <p className="text-sm text-blue-600 mt-1">Uploading images...</p>
+                    )}
+                    {formData.images && formData.images.length > 0 && (
                       <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2">
                         {formData.images.map((img, idx) => (
-                          <div key={idx} className="relative">
-                            <img src={img} alt="" className="w-full h-20 sm:h-24 object-cover rounded" />
+                          <div key={idx} className="relative group">
+                            <img 
+                              src={img} 
+                              alt={`Upload ${idx + 1}`} 
+                              className="w-full h-20 sm:h-24 object-cover rounded"
+                              onError={(e) => {
+                                e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2NjYyIvPjx0ZXh0IHRleHQtYW5jaG9yPSJtaWRkbGUiIHg9IjEwMCIgeT0iMTAwIiBmaWxsPSIjOTk5IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiI+SW1hZ2UgRXJyb3I8L3RleHQ+PC9zdmc+';
+                              }}
+                            />
                             <button
                               type="button"
                               onClick={() => removeImage(idx)}
-                              className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                              className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
                             >
-                            <X className="w-3 h-3" />
+                              <X className="w-3 h-3" />
                             </button>
                           </div>
-                      ))}
+                        ))}
                       </div>
                     )}
+                    <p className="text-xs text-gray-500 mt-1">
+                      Supported formats: JPG, PNG, GIF, WebP (max 5MB per file)
+                    </p>
                   </div>
                 </div>
               </div>
@@ -1046,28 +1125,27 @@ const removeImage = (index) => {
                   >
                     Cancel
                   </button>
-                  // Then in your form, disable the save button while uploading:
-<button
-  onClick={handleSave}
-  disabled={uploading}
-  className={`w-full sm:w-auto px-4 py-2 ${
-    uploading 
-      ? 'bg-gray-400 cursor-not-allowed' 
-      : 'bg-blue-600 hover:bg-blue-700'
-  } text-white rounded-lg transition-colors flex items-center justify-center gap-2`}
->
-  {uploading ? (
-    <>
-      <Clock className="w-4 h-4 animate-spin" />
-      Uploading...
-    </>
-  ) : (
-    <>
-      <Save className="w-4 h-4" />
-      {editingId ? 'Update' : 'Save'} Artifact
-    </>
-  )}
-</button>
+                  <button
+                    onClick={handleSave}
+                    disabled={uploading}
+                    className={`w-full sm:w-auto px-4 py-2 ${
+                      uploading 
+                        ? 'bg-gray-400 cursor-not-allowed' 
+                        : 'bg-blue-600 hover:bg-blue-700'
+                    } text-white rounded-lg transition-colors flex items-center justify-center gap-2`}
+                  >
+                    {uploading ? (
+                      <>
+                        <Clock className="w-4 h-4 animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        {editingId ? 'Update' : 'Save'} Artifact
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             </div>
