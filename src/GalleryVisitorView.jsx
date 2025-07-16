@@ -15,26 +15,32 @@ const VisitorArtifactCard = ({ artifact, onClick }) => {
       onClick={() => onClick(artifact)}
     >
       {allImages.length > 0 ? (
-        <div className="relative h-64">
-          <img 
-            src={allImages[currentImageIndex].src} 
-            alt={artifact.name} 
-            className="w-full h-full object-contain bg-gray-100" 
-          />
-          {allImages.length > 1 && (
-            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-              {allImages.map((_, idx) => (
-                <div
-                  key={idx}
-                  className={`w-1.5 h-1.5 rounded-full ${idx === currentImageIndex ? 'bg-white' : 'bg-white bg-opacity-50'}`}
-                />
-              ))}
-            </div>
-          )}
+        <div className="relative mx-auto" style={{ maxWidth: '280px' }}>
+          <div className="relative" style={{ paddingBottom: '133.33%' }}>
+            <img 
+              src={allImages[currentImageIndex].src} 
+              alt={artifact.name} 
+              className="absolute inset-0 w-full h-full object-contain bg-gray-100" 
+            />
+            {allImages.length > 1 && (
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                {allImages.map((_, idx) => (
+                  <div
+                    key={idx}
+                    className={`w-1.5 h-1.5 rounded-full ${idx === currentImageIndex ? 'bg-white' : 'bg-white bg-opacity-50'}`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       ) : (
-        <div className="h-64 bg-gray-100 flex items-center justify-center">
-          <Image size={48} className="text-gray-400" />
+        <div className="mx-auto" style={{ maxWidth: '280px' }}>
+          <div className="relative bg-gray-100 flex items-center justify-center" style={{ paddingBottom: '133.33%' }}>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Image size={48} className="text-gray-400" />
+            </div>
+          </div>
         </div>
       )}
       
@@ -98,48 +104,50 @@ const ArtifactModal = ({ artifact, onClose }) => {
         
         <div className="p-6">
           {allImages.length > 0 && (
-            <div className="relative mb-6">
-              <img 
-                src={allImages[currentImageIndex].src} 
-                alt={artifact.name} 
-                className="w-full max-h-[500px] object-contain bg-gray-100 rounded-lg" 
-              />
-              {allImages.length > 1 && (
-                <>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setCurrentImageIndex((currentImageIndex - 1 + allImages.length) % allImages.length);
-                    }}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full p-2 hover:bg-opacity-70"
-                  >
-                    <ChevronLeft size={24} />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setCurrentImageIndex((currentImageIndex + 1) % allImages.length);
-                    }}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full p-2 hover:bg-opacity-70"
-                  >
-                    <ChevronRight size={24} />
-                  </button>
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-                    {allImages.map((_, idx) => (
-                      <button
-                        key={idx}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setCurrentImageIndex(idx);
-                        }}
-                        className={`w-2 h-2 rounded-full transition ${
-                          idx === currentImageIndex ? 'bg-white' : 'bg-white bg-opacity-50'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
+            <div className="relative mb-6 mx-auto" style={{ maxWidth: '600px' }}>
+              <div className="relative" style={{ paddingBottom: '100%' }}>
+                <img 
+                  src={allImages[currentImageIndex].src} 
+                  alt={artifact.name} 
+                  className="absolute inset-0 w-full h-full object-contain bg-gray-100 rounded-lg" 
+                />
+                {allImages.length > 1 && (
+                  <>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCurrentImageIndex((currentImageIndex - 1 + allImages.length) % allImages.length);
+                      }}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full p-2 hover:bg-opacity-70"
+                    >
+                      <ChevronLeft size={24} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCurrentImageIndex((currentImageIndex + 1) % allImages.length);
+                      }}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full p-2 hover:bg-opacity-70"
+                    >
+                      <ChevronRight size={24} />
+                    </button>
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                      {allImages.map((_, idx) => (
+                        <button
+                          key={idx}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCurrentImageIndex(idx);
+                          }}
+                          className={`w-2 h-2 rounded-full transition ${
+                            idx === currentImageIndex ? 'bg-white' : 'bg-white bg-opacity-50'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           )}
           

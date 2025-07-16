@@ -12,51 +12,57 @@ const ArtifactCard = ({ artifact, onEdit, onDelete }) => {
   return (
     <div className="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition">
       {allImages.length > 0 && (
-        <div className="relative mb-4">
-          <img 
-            src={allImages[currentImageIndex].src} 
-            alt={artifact.name} 
-            className="w-full h-64 object-contain bg-gray-100 rounded-lg" 
-          />
-          {allImages.length > 1 && (
-            <>
-              <button
-                onClick={() => setCurrentImageIndex((currentImageIndex - 1 + allImages.length) % allImages.length)}
-                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full p-1 hover:bg-opacity-70"
-              >
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                  <path d="M12 14L8 10L12 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-              <button
-                onClick={() => setCurrentImageIndex((currentImageIndex + 1) % allImages.length)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full p-1 hover:bg-opacity-70"
-              >
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                  <path d="M8 14L12 10L8 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-                {allImages.map((_, idx) => (
-                  <div
-                    key={idx}
-                    className={`w-2 h-2 rounded-full ${idx === currentImageIndex ? 'bg-white' : 'bg-white bg-opacity-50'}`}
-                  />
-                ))}
-              </div>
-            </>
-          )}
+        <div className="relative mb-4 mx-auto" style={{ maxWidth: '280px' }}>
+          <div className="relative" style={{ paddingBottom: '133.33%' }}>
+            <img 
+              src={allImages[currentImageIndex].src} 
+              alt={artifact.name} 
+              className="absolute inset-0 w-full h-full object-contain bg-gray-100 rounded-lg" 
+            />
+            {allImages.length > 1 && (
+              <>
+                <button
+                  onClick={() => setCurrentImageIndex((currentImageIndex - 1 + allImages.length) % allImages.length)}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full p-1 hover:bg-opacity-70"
+                >
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <path d="M12 14L8 10L12 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setCurrentImageIndex((currentImageIndex + 1) % allImages.length)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full p-1 hover:bg-opacity-70"
+                >
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <path d="M8 14L12 10L8 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                  {allImages.map((_, idx) => (
+                    <div
+                      key={idx}
+                      className={`w-2 h-2 rounded-full ${idx === currentImageIndex ? 'bg-white' : 'bg-white bg-opacity-50'}`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
       {allImages.length === 0 && (
-        <div className="w-full h-64 bg-gray-100 rounded-lg mb-4 flex items-center justify-center">
-          <Image size={48} className="text-gray-400" />
+        <div className="mx-auto mb-4" style={{ maxWidth: '280px' }}>
+          <div className="relative bg-gray-100 rounded-lg flex items-center justify-center" style={{ paddingBottom: '133.33%' }}>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Image size={48} className="text-gray-400" />
+            </div>
+          </div>
         </div>
       )}
       
       <div className="flex justify-between items-start mb-2">
         <h3 className="text-lg font-bold text-gray-800">{artifact.name}</h3>
-        <div className="flex gap-1">
+        <div className="flex gap-1 flex-shrink-0">
           <button
             onClick={() => onEdit(artifact)}
             className="p-1 text-blue-500 hover:bg-blue-50 rounded"
