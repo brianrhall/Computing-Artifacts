@@ -12,8 +12,8 @@ const ArtifactCard = ({ artifact, onEdit, onDelete }) => {
   return (
     <div className="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition">
       {allImages.length > 0 && (
-        <div className="relative mb-4 mx-auto" style={{ maxWidth: '280px' }}>
-          <div className="relative" style={{ paddingBottom: '133.33%' }}>
+        <div className="relative mb-4 mx-auto" style={{ maxWidth: '240px' }}>
+          <div className="relative" style={{ paddingBottom: '150%' }}>
             <img 
               src={allImages[currentImageIndex].src} 
               alt={artifact.name} 
@@ -51,8 +51,8 @@ const ArtifactCard = ({ artifact, onEdit, onDelete }) => {
         </div>
       )}
       {allImages.length === 0 && (
-        <div className="mx-auto mb-4" style={{ maxWidth: '280px' }}>
-          <div className="relative bg-gray-100 rounded-lg flex items-center justify-center" style={{ paddingBottom: '133.33%' }}>
+        <div className="mx-auto mb-4" style={{ maxWidth: '240px' }}>
+          <div className="relative bg-gray-100 rounded-lg flex items-center justify-center" style={{ paddingBottom: '150%' }}>
             <div className="absolute inset-0 flex items-center justify-center">
               <Image size={48} className="text-gray-400" />
             </div>

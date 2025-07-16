@@ -15,8 +15,8 @@ const VisitorArtifactCard = ({ artifact, onClick }) => {
       onClick={() => onClick(artifact)}
     >
       {allImages.length > 0 ? (
-        <div className="relative mx-auto" style={{ maxWidth: '280px' }}>
-          <div className="relative" style={{ paddingBottom: '133.33%' }}>
+        <div className="relative mx-auto" style={{ maxWidth: '240px' }}>
+          <div className="relative" style={{ paddingBottom: '150%' }}>
             <img 
               src={allImages[currentImageIndex].src} 
               alt={artifact.name} 
@@ -35,8 +35,8 @@ const VisitorArtifactCard = ({ artifact, onClick }) => {
           </div>
         </div>
       ) : (
-        <div className="mx-auto" style={{ maxWidth: '280px' }}>
-          <div className="relative bg-gray-100 flex items-center justify-center" style={{ paddingBottom: '133.33%' }}>
+        <div className="mx-auto" style={{ maxWidth: '240px' }}>
+          <div className="relative bg-gray-100 flex items-center justify-center" style={{ paddingBottom: '150%' }}>
             <div className="absolute inset-0 flex items-center justify-center">
               <Image size={48} className="text-gray-400" />
             </div>
@@ -104,8 +104,8 @@ const ArtifactModal = ({ artifact, onClose }) => {
         
         <div className="p-6">
           {allImages.length > 0 && (
-            <div className="relative mb-6 mx-auto" style={{ maxWidth: '600px' }}>
-              <div className="relative" style={{ paddingBottom: '100%' }}>
+            <div className="relative mb-6 mx-auto" style={{ maxWidth: '400px' }}>
+              <div className="relative" style={{ paddingBottom: '133.33%' }}>
                 <img 
                   src={allImages[currentImageIndex].src} 
                   alt={artifact.name} 
