@@ -15,11 +15,11 @@ const VisitorArtifactCard = ({ artifact, onClick }) => {
       onClick={() => onClick(artifact)}
     >
       {allImages.length > 0 ? (
-        <div className="relative h-48">
+        <div className="relative h-64">
           <img 
             src={allImages[currentImageIndex].src} 
             alt={artifact.name} 
-            className="w-full h-full object-cover" 
+            className="w-full h-full object-contain bg-gray-100" 
           />
           {allImages.length > 1 && (
             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
@@ -33,7 +33,7 @@ const VisitorArtifactCard = ({ artifact, onClick }) => {
           )}
         </div>
       ) : (
-        <div className="h-48 bg-gray-100 flex items-center justify-center">
+        <div className="h-64 bg-gray-100 flex items-center justify-center">
           <Image size={48} className="text-gray-400" />
         </div>
       )}
@@ -102,7 +102,7 @@ const ArtifactModal = ({ artifact, onClose }) => {
               <img 
                 src={allImages[currentImageIndex].src} 
                 alt={artifact.name} 
-                className="w-full max-h-96 object-contain bg-gray-100 rounded-lg" 
+                className="w-full max-h-[500px] object-contain bg-gray-100 rounded-lg" 
               />
               {allImages.length > 1 && (
                 <>

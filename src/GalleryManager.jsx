@@ -16,7 +16,7 @@ const ArtifactCard = ({ artifact, onEdit, onDelete }) => {
           <img 
             src={allImages[currentImageIndex].src} 
             alt={artifact.name} 
-            className="w-full h-48 object-cover rounded-lg" 
+            className="w-full h-64 object-contain bg-gray-100 rounded-lg" 
           />
           {allImages.length > 1 && (
             <>
@@ -49,7 +49,7 @@ const ArtifactCard = ({ artifact, onEdit, onDelete }) => {
         </div>
       )}
       {allImages.length === 0 && (
-        <div className="w-full h-48 bg-gray-100 rounded-lg mb-4 flex items-center justify-center">
+        <div className="w-full h-64 bg-gray-100 rounded-lg mb-4 flex items-center justify-center">
           <Image size={48} className="text-gray-400" />
         </div>
       )}
