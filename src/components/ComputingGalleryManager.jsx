@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Edit2, Trash2, Plus, Search, Filter, Save, X, CheckCircle, Clock, DollarSign, Grid, List, LogIn, LogOut, User, Shield } from 'lucide-react';
+import { Camera, Edit2, Trash2, Plus, Search, Filter, Save, X, CheckCircle, Clock, DollarSign, Grid, List, LogIn, LogOut, User, Shield, Package, Eye } from 'lucide-react';
+import ExhibitManager from './ExhibitManager';
 
 // Firebase imports
 import { auth, googleProvider, db, storage } from '../firebase';
@@ -34,6 +35,7 @@ const ComputingGalleryManager = () => {
   const [authError, setAuthError] = useState('');
   
   // App states
+  const [activeTab, setActiveTab] = useState('artifacts'); // New state for tabs
   const [artifacts, setArtifacts] = useState([]);
   const [filteredArtifacts, setFilteredArtifacts] = useState([]);
   const [showForm, setShowForm] = useState(false);
@@ -513,205 +515,245 @@ const ComputingGalleryManager = () => {
               )}
             </div>
           </div>
+          
+          {/* Tab Navigation */}
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveTab('artifacts')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'artifacts'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Package className="w-4 h-4" />
+                  Artifacts
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('exhibits')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'exhibits'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Eye className="w-4 h-4" />
+                  Exhibits
+                </div>
+              </button>
+            </nav>
+          </div>
         </header>
 
-        {/* Controls */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <div className="flex flex-wrap gap-4 items-center justify-between">
-            <div className="flex flex-wrap gap-4 items-center flex-1">
-              <div className="relative flex-1 min-w-64">
-                <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search artifacts..."
-                  className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-              
-              <select
-                className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={filterCategory}
-                onChange={(e) => setFilterCategory(e.target.value)}
-              >
-                <option value="all">All Categories</option>
-                {categories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-              
-              <select
-                className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={filterGroup}
-                onChange={(e) => setFilterGroup(e.target.value)}
-              >
-                <option value="all">All Display Groups</option>
-                {displayGroups.map(group => (
-                  <option key={group} value={group}>{group}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="flex gap-2">
-              <button
-                onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-                className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2"
-              >
-                {viewMode === 'grid' ? <List className="w-4 h-4" /> : <Grid className="w-4 h-4" />}
-                {viewMode === 'grid' ? 'List' : 'Grid'}
-              </button>
-              
-              {isAdmin && (
-                <button
-                  onClick={() => setShowForm(true)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-                >
-                  <Plus className="w-5 h-5" />
-                  Add Artifact
-                </button>
-              )}
-            </div>
-          </div>
-          
-          <div className="mt-4 text-sm text-gray-600">
-            Showing {filteredArtifacts.length} of {artifacts.length} artifacts
-          </div>
-        </div>
-
-        {/* Artifacts Display */}
-        {viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredArtifacts.map(artifact => (
-              <div key={artifact.id} className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
-                <div className="aspect-video bg-gray-100 relative overflow-hidden">
-                  {artifact.images && artifact.images[0] ? (
-                    <img src={artifact.images[0]} alt={artifact.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="flex items-center justify-center h-full">
-                      <Camera className="w-12 h-12 text-gray-300" />
-                    </div>
-                  )}
-                  <div className="absolute top-2 right-2 flex gap-2">
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${getPriorityColor(artifact.priority)}`}>
-                      {artifact.priority}
-                    </span>
+        {/* Content based on active tab */}
+        {activeTab === 'artifacts' ? (
+          <>
+            {/* Controls */}
+            <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+              <div className="flex flex-wrap gap-4 items-center justify-between">
+                <div className="flex flex-wrap gap-4 items-center flex-1">
+                  <div className="relative flex-1 min-w-64">
+                    <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search artifacts..."
+                      className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
                   </div>
+                  
+                  <select
+                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={filterCategory}
+                    onChange={(e) => setFilterCategory(e.target.value)}
+                  >
+                    <option value="all">All Categories</option>
+                    {categories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                  
+                  <select
+                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={filterGroup}
+                    onChange={(e) => setFilterGroup(e.target.value)}
+                  >
+                    <option value="all">All Display Groups</option>
+                    {displayGroups.map(group => (
+                      <option key={group} value={group}>{group}</option>
+                    ))}
+                  </select>
                 </div>
                 
-                <div className="p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900">{artifact.name}</h3>
-                    <div className="flex items-center gap-1">
-                      {getStatusIcon(artifact.status)}
-                    </div>
-                  </div>
-                  
-                  <p className="text-sm text-gray-600 mb-1">{artifact.manufacturer} {artifact.model}</p>
-                  <p className="text-sm text-gray-500 mb-3">{artifact.year} • {artifact.category}</p>
-                  
-                  {artifact.os && (
-                    <p className="text-sm text-gray-600 mb-2">OS: {artifact.os}</p>
-                  )}
-                  
-                  <div className="flex items-center justify-between text-sm mb-3">
-                    <span className="text-gray-500">{artifact.displayGroup}</span>
-                    {artifact.value && (
-                      <span className="flex items-center gap-1 text-green-600">
-                        <DollarSign className="w-3 h-3" />
-                        {artifact.value}
-                      </span>
-                    )}
-                  </div>
-                  
-                  {artifact.description && (
-                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">{artifact.description}</p>
-                  )}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+                    className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2"
+                  >
+                    {viewMode === 'grid' ? <List className="w-4 h-4" /> : <Grid className="w-4 h-4" />}
+                    {viewMode === 'grid' ? 'List' : 'Grid'}
+                  </button>
                   
                   {isAdmin && (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEdit(artifact)}
-                        className="flex-1 px-3 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors flex items-center justify-center gap-1"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(artifact.id)}
-                        className="flex-1 px-3 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors flex items-center justify-center gap-1"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Delete
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => setShowForm(true)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                    >
+                      <Plus className="w-5 h-5" />
+                      Add Artifact
+                    </button>
                   )}
                 </div>
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Name</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Category</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Year</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Display Group</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Status</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Value</th>
-                  {isAdmin && (
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Actions</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody className="divide-y">
+              
+              <div className="mt-4 text-sm text-gray-600">
+                Showing {filteredArtifacts.length} of {artifacts.length} artifacts
+              </div>
+            </div>
+
+            {/* Artifacts Display */}
+            {viewMode === 'grid' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredArtifacts.map(artifact => (
-                  <tr key={artifact.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <div>
-                        <div className="font-medium text-gray-900">{artifact.name}</div>
-                        <div className="text-sm text-gray-500">{artifact.manufacturer} {artifact.model}</div>
+                  <div key={artifact.id} className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                    <div className="aspect-video bg-gray-100 relative overflow-hidden">
+                      {artifact.images && artifact.images[0] ? (
+                        <img src={artifact.images[0]} alt={artifact.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="flex items-center justify-center h-full">
+                          <Camera className="w-12 h-12 text-gray-300" />
+                        </div>
+                      )}
+                      <div className="absolute top-2 right-2 flex gap-2">
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${getPriorityColor(artifact.priority)}`}>
+                          {artifact.priority}
+                        </span>
                       </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{artifact.category}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{artifact.year}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{artifact.displayGroup}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        {getStatusIcon(artifact.status)}
-                        <span className="text-sm text-gray-600">{artifact.status}</span>
+                    </div>
+                    
+                    <div className="p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <h3 className="text-lg font-semibold text-gray-900">{artifact.name}</h3>
+                        <div className="flex items-center gap-1">
+                          {getStatusIcon(artifact.status)}
+                        </div>
                       </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {artifact.value && `$${artifact.value}`}
-                    </td>
-                    {isAdmin && (
-                      <td className="px-4 py-3">
+                      
+                      <p className="text-sm text-gray-600 mb-1">{artifact.manufacturer} {artifact.model}</p>
+                      <p className="text-sm text-gray-500 mb-3">{artifact.year} • {artifact.category}</p>
+                      
+                      {artifact.os && (
+                        <p className="text-sm text-gray-600 mb-2">OS: {artifact.os}</p>
+                      )}
+                      
+                      <div className="flex items-center justify-between text-sm mb-3">
+                        <span className="text-gray-500">{artifact.displayGroup}</span>
+                        {artifact.value && (
+                          <span className="flex items-center gap-1 text-green-600">
+                            <DollarSign className="w-3 h-3" />
+                            {artifact.value}
+                          </span>
+                        )}
+                      </div>
+                      
+                      {artifact.description && (
+                        <p className="text-sm text-gray-600 mb-3 line-clamp-2">{artifact.description}</p>
+                      )}
+                      
+                      {isAdmin && (
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleEdit(artifact)}
-                            className="text-blue-600 hover:text-blue-800"
-                            title="Edit"
+                            className="flex-1 px-3 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors flex items-center justify-center gap-1"
                           >
                             <Edit2 className="w-4 h-4" />
+                            Edit
                           </button>
                           <button
                             onClick={() => handleDelete(artifact.id)}
-                            className="text-red-600 hover:text-red-800"
-                            title="Delete"
+                            className="flex-1 px-3 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors flex items-center justify-center gap-1"
                           >
                             <Trash2 className="w-4 h-4" />
+                            Delete
                           </button>
                         </div>
-                      </td>
-                    )}
-                  </tr>
+                      )}
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            ) : (
+              <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Name</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Category</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Year</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Display Group</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Status</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Value</th>
+                      {isAdmin && (
+                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Actions</th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {filteredArtifacts.map(artifact => (
+                      <tr key={artifact.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3">
+                          <div>
+                            <div className="font-medium text-gray-900">{artifact.name}</div>
+                            <div className="text-sm text-gray-500">{artifact.manufacturer} {artifact.model}</div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{artifact.category}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{artifact.year}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{artifact.displayGroup}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            {getStatusIcon(artifact.status)}
+                            <span className="text-sm text-gray-600">{artifact.status}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {artifact.value && `$${artifact.value}`}
+                        </td>
+                        {isAdmin && (
+                          <td className="px-4 py-3">
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleEdit(artifact)}
+                                className="text-blue-600 hover:text-blue-800"
+                                title="Edit"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(artifact.id)}
+                                className="text-red-600 hover:text-red-800"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        ) : (
+          /* Exhibits Tab */
+          <ExhibitManager user={user} isAdmin={isAdmin} artifacts={artifacts} />
         )}
 
         {/* Login Modal */}
@@ -804,7 +846,7 @@ const ComputingGalleryManager = () => {
         )}
 
         {/* Form Modal - Only for Admins */}
-        {showForm && isAdmin && (
+        {showForm && isAdmin && activeTab === 'artifacts' && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
             <div className="bg-white rounded-lg w-full max-w-4xl my-4 max-h-[calc(100vh-2rem)] sm:max-h-[90vh] overflow-y-auto">
               <div className="sticky top-0 bg-white border-b z-10 px-4 sm:px-6 py-4">
