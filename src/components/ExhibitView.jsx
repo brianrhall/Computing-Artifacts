@@ -98,15 +98,15 @@ const ExhibitView = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header Image */}
+      {/* Header Image - Taller banner style */}
       {exhibit.headerImage && (
-        <div className="relative h-64 md:h-96 bg-gray-900 overflow-hidden">
+        <div className="relative h-80 md:h-[28rem] bg-gray-900 overflow-hidden">
           <img 
             src={exhibit.headerImage} 
             alt={exhibit.name}
             className="w-full h-full object-cover opacity-90"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
           <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
             <div className="max-w-7xl mx-auto">
               <h1 className="text-3xl md:text-5xl font-bold text-white mb-2">
