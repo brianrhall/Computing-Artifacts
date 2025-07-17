@@ -6,7 +6,8 @@ module.exports = {
   theme: {
     extend: {
       aspectRatio: {
-        'video': '3 / 4',  // Override aspect-video to be 3:4 instead of 16:9
+        'portrait': '3 / 4',  // Portrait orientation for artifacts
+        'banner': '16 / 9',   // Wide banner for exhibit headers
       }
     },
   },
