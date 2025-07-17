@@ -621,7 +621,7 @@ const ComputingGalleryManager = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredArtifacts.map(artifact => (
                   <div key={artifact.id} className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
-                    <div className="aspect-video bg-gray-100 relative overflow-hidden">
+                    <div className="aspect-portrait bg-gray-100 relative overflow-hidden">
                       {artifact.images && artifact.images[0] ? (
                         <img src={artifact.images[0]} alt={artifact.name} className="w-full h-full object-cover" />
                       ) : (
@@ -1115,7 +1115,7 @@ const ComputingGalleryManager = () => {
                   {/* Images */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Images
+                      Images (3:4 portrait orientation recommended)
                     </label>
                     <input
                       type="file"
