@@ -1,25 +1,19 @@
-import React, { useState } from 'react';
-import GalleryManager from './GalleryManager';
-import GalleryVisitorView from './GalleryVisitorView';
-import { Eye, Settings } from 'lucide-react';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import ComputingGalleryManager from './components/ComputingGalleryManager';
+import ExhibitView from './components/ExhibitView';
 import './App.css';
 
-//new
-import ComputingGalleryManager from './components/ComputingGalleryManager';
-
 function App() {
-  const [isAdminView, setIsAdminView] = useState(true);
-  const [sharedArtifacts, setSharedArtifacts] = useState([]);
-
-  // This function will be called from GalleryManager to share artifacts with visitor view
-  const handleArtifactsUpdate = (artifacts) => {
-    setSharedArtifacts(artifacts);
-  };
-
   return (
-    <div className="App">
-      <ComputingGalleryManager />
-    </div>
+    <Router>
+      <div className="App">
+        <Routes>
+          <Route path="/" element={<ComputingGalleryManager />} />
+          <Route path="/exhibit/:exhibitId" element={<ExhibitView />} />
+        </Routes>
+      </div>
+    </Router>
   );
 }
 
