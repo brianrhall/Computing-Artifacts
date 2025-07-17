@@ -228,7 +228,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {exhibits.map(exhibit => (
             <div key={exhibit.id} className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
-              <div className="aspect-video bg-gray-100 relative overflow-hidden">
+              <div className="aspect-[16/9] bg-gray-100 relative overflow-hidden">
                 {exhibit.headerImage ? (
                   <img src={exhibit.headerImage} alt={exhibit.name} className="w-full h-full object-cover" />
                 ) : (
@@ -436,7 +436,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Header Image
+                      Header Image (16:9 aspect ratio recommended)
                     </label>
                     <input
                       type="file"
@@ -453,7 +453,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                         <img 
                           src={formData.headerImage} 
                           alt="Header" 
-                          className="w-full max-w-md h-48 object-cover rounded"
+                          className="w-full max-w-md h-48 object-cover rounded aspect-[16/9]"
                         />
                       </div>
                     )}
