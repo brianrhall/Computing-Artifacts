@@ -81,6 +81,7 @@ npm start
 
 #### Security Rules
 ```javascript
+// Firestore Security Rules
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -96,6 +97,27 @@ service cloud.firestore {
       // Only admins can write
       allow write: if request.auth != null && 
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Add to your existing rules
+		match /exhibits/{document=**} {
+  		allow read: if true;
+  		// Only admins can write
+  		allow write: if request.auth != null && 
+    		get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+}
+  }
+}
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /artifacts/{allPaths=**} {
+      // Anyone can read
+      allow read: if true;
+      // Only authenticated users can upload
+      allow write: if request.auth != null;
+      // Limit file size to 5MB
+      allow write: if request.resource.size < 5 * 1024 * 1024;
     }
   }
 }
