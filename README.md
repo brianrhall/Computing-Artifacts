@@ -100,12 +100,12 @@ service cloud.firestore {
     }
     
     // Add to your existing rules
-		match /exhibits/{document=**} {
-  		allow read: if true;
-  		// Only admins can write
-  		allow write: if request.auth != null && 
-    		get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-}
+	match /exhibits/{document=**} {
+  	allow read: if true;
+	// Only admins can write
+	allow write: if request.auth != null && 
+	get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+	}
   }
 }
 
@@ -121,6 +121,7 @@ service firebase.storage {
     }
   }
 }
+
 ```
 
 ### Setting Up Admin Users
