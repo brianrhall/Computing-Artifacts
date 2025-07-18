@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Edit2, Trash2, Plus, Search, Filter, Save, X, CheckCircle, Clock, DollarSign, Grid, List, LogIn, LogOut, User, Shield, Package, Eye } from 'lucide-react';
+import { Camera, Edit2, Trash2, Plus, Search, Filter, Save, X, CheckCircle, Clock, DollarSign, Grid, List, LogIn, LogOut, User, Shield, Package, Eye, Copy } from 'lucide-react';
 import ExhibitManager from './ExhibitManager';
 
 // Firebase imports
@@ -421,6 +421,31 @@ const ComputingGalleryManager = () => {
     setShowForm(true);
   };
 
+  const handleDuplicate = (artifact) => {
+    // Copy all fields except ID and add " (Copy)" to the name
+    setFormData({
+      name: `${artifact.name} (Copy)`,
+      category: artifact.category || '',
+      manufacturer: artifact.manufacturer || '',
+      model: artifact.model || '',
+      year: artifact.year || '',
+      os: artifact.os || '',
+      description: artifact.description || '',
+      condition: artifact.condition || '',
+      displayGroup: artifact.displayGroup || '',
+      location: artifact.location || '',
+      value: artifact.value || '',
+      acquisitionDate: artifact.acquisitionDate || '',
+      donor: artifact.donor || '',
+      status: artifact.status || 'To Do',
+      priority: artifact.priority || 'Medium',
+      notes: artifact.notes || '',
+      images: artifact.images || []
+    });
+    setEditingId(null); // This is a new artifact, not an edit
+    setShowForm(true);
+  };
+
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this artifact?')) {
       try {
@@ -670,16 +695,26 @@ const ComputingGalleryManager = () => {
                           <button
                             onClick={() => handleEdit(artifact)}
                             className="flex-1 px-3 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors flex items-center justify-center gap-1"
+                            title="Edit artifact"
                           >
                             <Edit2 className="w-4 h-4" />
-                            Edit
+                            <span className="hidden sm:inline">Edit</span>
+                          </button>
+                          <button
+                            onClick={() => handleDuplicate(artifact)}
+                            className="flex-1 px-3 py-1 bg-purple-50 text-purple-600 rounded hover:bg-purple-100 transition-colors flex items-center justify-center gap-1"
+                            title="Duplicate artifact"
+                          >
+                            <Copy className="w-4 h-4" />
+                            <span className="hidden sm:inline">Duplicate</span>
                           </button>
                           <button
                             onClick={() => handleDelete(artifact.id)}
                             className="flex-1 px-3 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors flex items-center justify-center gap-1"
+                            title="Delete artifact"
                           >
                             <Trash2 className="w-4 h-4" />
-                            Delete
+                            <span className="hidden sm:inline">Delete</span>
                           </button>
                         </div>
                       )}
@@ -733,6 +768,13 @@ const ComputingGalleryManager = () => {
                                 title="Edit"
                               >
                                 <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDuplicate(artifact)}
+                                className="text-purple-600 hover:text-purple-800"
+                                title="Duplicate"
+                              >
+                                <Copy className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => handleDelete(artifact.id)}
