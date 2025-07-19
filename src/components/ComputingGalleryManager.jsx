@@ -648,7 +648,7 @@ const ComputingGalleryManager = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredArtifacts.map(artifact => (
                   <div key={artifact.id} className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
-                    <div className="aspect-portrait bg-gray-100 relative overflow-hidden">
+                    <div className="aspect-portrait bg-gray-100 relative overflow-hidden rounded-t-lg">
                       {artifact.images && artifact.images[0] ? (
                         <img src={artifact.images[0]} alt={artifact.name} className="w-full h-full object-cover" />
                       ) : (
@@ -1201,7 +1201,7 @@ const ComputingGalleryManager = () => {
                             <img 
                               src={img} 
                               alt={`Upload ${idx + 1}`} 
-                              className="w-full h-20 sm:h-24 object-cover rounded"
+                              className="w-full h-20 sm:h-24 object-cover rounded-lg"
                               onError={(e) => {
                                 e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2NjYyIvPjx0ZXh0IHRleHQtYW5jaG9yPSJtaWRkbGUiIHg9IjEwMCIgeT0iMTAwIiBmaWxsPSIjOTk5IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiI+SW1hZ2UgRXJyb3I8L3RleHQ+PC9zdmc+';
                               }}
