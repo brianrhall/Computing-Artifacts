@@ -73,7 +73,7 @@ const ComputingGalleryManager = () => {
     donor: '',
     status: 'To Do',
     priority: 'Medium',
-    notes: '',
+    taskNotes: '',
     images: []
   });
 
@@ -348,8 +348,8 @@ const ComputingGalleryManager = () => {
         acquisitionDate: formData.acquisitionDate || '',
         donor: formData.donor || '',
         status: formData.status || 'To Do',
-        priority: formData.priority || 'Medium',
-        notes: formData.notes || '',
+        priority: formData.status === 'Complete' ? 'None' : (formData.priority || 'Medium'),
+        taskNotes: formData.taskNotes || '',
         images: formData.images || [],
         updatedAt: new Date()
       };
@@ -389,7 +389,7 @@ const ComputingGalleryManager = () => {
       name: '', category: '', manufacturer: '', model: '', year: '', os: '',
       description: '', condition: '', displayGroup: '', location: '', value: '',
       acquisitionDate: '', donor: '', status: 'To Do', priority: 'Medium',
-      notes: '', images: []
+      taskNotes: '', images: []
     });
     setShowForm(false);
     setEditingId(null);
@@ -414,7 +414,7 @@ const ComputingGalleryManager = () => {
       donor: artifact.donor || '',
       status: artifact.status || 'To Do',
       priority: artifact.priority || 'Medium',
-      notes: artifact.notes || '',
+      taskNotes: artifact.taskNotes || '',
       images: artifact.images || []
     });
     setEditingId(artifact.id);
@@ -439,7 +439,7 @@ const ComputingGalleryManager = () => {
       donor: artifact.donor || '',
       status: artifact.status || 'To Do',
       priority: artifact.priority || 'Medium',
-      notes: artifact.notes || '',
+      taskNotes: artifact.taskNotes || '',
       images: artifact.images || []
     });
     setEditingId(null); // This is a new artifact, not an edit
@@ -488,7 +488,9 @@ const ComputingGalleryManager = () => {
     switch(priority) {
       case 'High': return 'text-red-600 bg-red-50';
       case 'Medium': return 'text-yellow-600 bg-yellow-50';
-      default: return 'text-green-600 bg-green-50';
+      case 'Low': return 'text-green-600 bg-green-50';
+      case 'None': return 'text-gray-600 bg-gray-50';
+      default: return 'text-gray-600 bg-gray-50';
     }
   };
 
@@ -654,11 +656,13 @@ const ComputingGalleryManager = () => {
                           <Camera className="w-12 h-12 text-gray-300" />
                         </div>
                       )}
-                      <div className="absolute top-2 right-2 flex gap-2">
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${getPriorityColor(artifact.priority)}`}>
-                          {artifact.priority}
-                        </span>
-                      </div>
+                      {isAdmin && artifact.priority && artifact.priority !== 'None' && (
+                        <div className="absolute top-2 right-2 flex gap-2">
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${getPriorityColor(artifact.priority)}`}>
+                            {artifact.priority}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     
                     <div className="p-4">
@@ -732,6 +736,9 @@ const ComputingGalleryManager = () => {
                       <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Year</th>
                       <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Display Group</th>
                       <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Status</th>
+                      {isAdmin && (
+                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Priority</th>
+                      )}
                       <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Value</th>
                       {isAdmin && (
                         <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Actions</th>
@@ -756,6 +763,15 @@ const ComputingGalleryManager = () => {
                             <span className="text-sm text-gray-600">{artifact.status}</span>
                           </div>
                         </td>
+                        {isAdmin && (
+                          <td className="px-4 py-3">
+                            {artifact.priority && artifact.priority !== 'None' && (
+                              <span className={`px-2 py-1 rounded text-xs font-medium ${getPriorityColor(artifact.priority)}`}>
+                                {artifact.priority}
+                              </span>
+                            )}
+                          </td>
+                        )}
                         <td className="px-4 py-3 text-sm text-gray-600">
                           {artifact.value && `$${artifact.value}`}
                         </td>
@@ -1072,7 +1088,14 @@ const ComputingGalleryManager = () => {
                         <select
                           className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                           value={formData.status}
-                          onChange={(e) => setFormData({...formData, status: e.target.value})}
+                          onChange={(e) => {
+                            const newStatus = e.target.value;
+                            setFormData({
+                              ...formData, 
+                              status: newStatus,
+                              priority: newStatus === 'Complete' ? 'None' : formData.priority
+                            });
+                          }}
                         >
                           <option value="To Do">To Do</option>
                           <option value="In Progress">In Progress</option>
@@ -1086,13 +1109,28 @@ const ComputingGalleryManager = () => {
                         </label>
                         <select
                           className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={formData.priority}
+                          value={formData.status === 'Complete' ? 'None' : formData.priority}
                           onChange={(e) => setFormData({...formData, priority: e.target.value})}
+                          disabled={formData.status === 'Complete'}
                         >
+                          <option value="None">None</option>
                           <option value="Low">Low</option>
                           <option value="Medium">Medium</option>
                           <option value="High">High</option>
                         </select>
+                      </div>
+                      
+                      <div className="sm:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Task Notes
+                        </label>
+                        <textarea
+                          rows="2"
+                          className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="Task details, restoration notes, work to be done, etc."
+                          value={formData.taskNotes}
+                          onChange={(e) => setFormData({...formData, taskNotes: e.target.value})}
+                        />
                       </div>
                     </div>
                   </div>
@@ -1137,20 +1175,6 @@ const ComputingGalleryManager = () => {
                       className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={formData.description}
                       onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    />
-                  </div>
-                  
-                  {/* Notes */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Notes
-                    </label>
-                    <textarea
-                      rows="2"
-                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Additional notes, restoration details, etc."
-                      value={formData.notes}
-                      onChange={(e) => setFormData({...formData, notes: e.target.value})}
                     />
                   </div>
                   
