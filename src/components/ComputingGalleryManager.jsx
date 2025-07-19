@@ -62,6 +62,7 @@ const ComputingGalleryManager = () => {
     category: '',
     manufacturer: '',
     model: '',
+    serialNumber: '',  // Added serial number field
     year: '',
     os: '',
     description: '',
@@ -338,6 +339,7 @@ const ComputingGalleryManager = () => {
         category: formData.category,
         manufacturer: formData.manufacturer || '',
         model: formData.model || '',
+        serialNumber: formData.serialNumber || '',  // Include serial number in save
         year: formData.year || '',
         os: formData.os || '',
         description: formData.description || '',
@@ -386,7 +388,7 @@ const ComputingGalleryManager = () => {
 
   const resetForm = () => {
     setFormData({
-      name: '', category: '', manufacturer: '', model: '', year: '', os: '',
+      name: '', category: '', manufacturer: '', model: '', serialNumber: '', year: '', os: '',
       description: '', condition: '', displayGroup: '', location: '', value: '',
       acquisitionDate: '', donor: '', status: 'To Do', priority: 'Medium',
       taskNotes: '', images: []
@@ -403,6 +405,7 @@ const ComputingGalleryManager = () => {
       category: artifact.category || '',
       manufacturer: artifact.manufacturer || '',
       model: artifact.model || '',
+      serialNumber: artifact.serialNumber || '',  // Include serial number in edit
       year: artifact.year || '',
       os: artifact.os || '',
       description: artifact.description || '',
@@ -428,6 +431,7 @@ const ComputingGalleryManager = () => {
       category: artifact.category || '',
       manufacturer: artifact.manufacturer || '',
       model: artifact.model || '',
+      serialNumber: artifact.serialNumber || '',  // Include serial number in duplicate
       year: artifact.year || '',
       os: artifact.os || '',
       description: artifact.description || '',
@@ -980,6 +984,19 @@ const ComputingGalleryManager = () => {
                           className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                           value={formData.model}
                           onChange={(e) => setFormData({...formData, model: e.target.value})}
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Serial Number
+                        </label>
+                        <input
+                          type="text"
+                          className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          value={formData.serialNumber}
+                          onChange={(e) => setFormData({...formData, serialNumber: e.target.value})}
+                          placeholder="Enter serial number (internal use only)"
                         />
                       </div>
                       
