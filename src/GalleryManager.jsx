@@ -162,6 +162,7 @@ const GalleryManager = ({ onArtifactsUpdate }) => {
     os: '',
     manufacturer: '',
     model: '',
+    serialNumber: '',  // Added serial number field
     description: '',
     condition: '',
     displayGroup: '',
@@ -186,6 +187,7 @@ const GalleryManager = ({ onArtifactsUpdate }) => {
         os: 'System 1.0',
         manufacturer: 'Apple',
         model: 'M0001',
+        serialNumber: 'F4Q47V2J5Y6',  // Added sample serial number
         description: 'The first Macintosh personal computer',
         condition: 'Working',
         displayGroup: 'Early PCs',
@@ -206,6 +208,7 @@ const GalleryManager = ({ onArtifactsUpdate }) => {
         os: 'Commodore BASIC 2.0',
         manufacturer: 'Commodore',
         model: 'C64',
+        serialNumber: 'WG8250456',  // Added sample serial number
         description: 'Best-selling home computer model',
         condition: 'Restored',
         displayGroup: 'Home Computers',
@@ -280,6 +283,7 @@ const GalleryManager = ({ onArtifactsUpdate }) => {
       os: '',
       manufacturer: '',
       model: '',
+      serialNumber: '',  // Reset serial number field
       description: '',
       condition: '',
       displayGroup: '',
@@ -297,7 +301,10 @@ const GalleryManager = ({ onArtifactsUpdate }) => {
   };
 
   const handleEdit = (artifact) => {
-    setFormData(artifact);
+    setFormData({
+      ...artifact,
+      serialNumber: artifact.serialNumber || ''  // Ensure serial number is included in edit
+    });
     setEditingId(artifact.id);
     setShowForm(true);
   };
@@ -469,6 +476,17 @@ const GalleryManager = ({ onArtifactsUpdate }) => {
                       className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={formData.model}
                       onChange={(e) => setFormData({...formData, model: e.target.value})}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Serial Number</label>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={formData.serialNumber}
+                      onChange={(e) => setFormData({...formData, serialNumber: e.target.value})}
+                      placeholder="Enter serial number (internal use only)"
                     />
                   </div>
                   
