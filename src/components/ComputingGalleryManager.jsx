@@ -49,7 +49,7 @@ const ComputingGalleryManager = () => {
   const categories = [
     'Mainframe', 'Minicomputer', 'Microcomputer', 'Personal Computer',
     'Laptop', 'Server', 'Storage Device', 'Peripheral', 'Component',
-    'Software', 'Documentation', 'Other'
+    'Software', 'Documentation', 'Marketing', 'Other'
   ];
   
   const displayGroups = [
@@ -682,7 +682,7 @@ const ComputingGalleryManager = () => {
                       
                       <div className="flex items-center justify-between text-sm mb-3">
                         <span className="text-gray-500">{artifact.displayGroup}</span>
-                        {artifact.value && (
+                        {isAdmin && artifact.value && (
                           <span className="flex items-center gap-1 text-green-600">
                             <DollarSign className="w-3 h-3" />
                             {artifact.value}
@@ -739,7 +739,9 @@ const ComputingGalleryManager = () => {
                       {isAdmin && (
                         <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Priority</th>
                       )}
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Value</th>
+                      {isAdmin && (
+                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Value</th>
+                      )}
                       {isAdmin && (
                         <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Actions</th>
                       )}
@@ -772,9 +774,11 @@ const ComputingGalleryManager = () => {
                             )}
                           </td>
                         )}
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {artifact.value && `$${artifact.value}`}
-                        </td>
+                        {isAdmin && (
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {artifact.value && `$${artifact.value}`}
+                          </td>
+                        )}
                         {isAdmin && (
                           <td className="px-4 py-3">
                             <div className="flex gap-2">
