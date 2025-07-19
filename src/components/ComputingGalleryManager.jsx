@@ -378,7 +378,14 @@ const ComputingGalleryManager = () => {
       }
       
       resetForm();
-      alert('Artifact saved successfully!');
+      
+      // Show a more informative success message
+      const action = editingId ? 'updated' : 'added';
+      const message = `✅ Success! "${formData.name}" has been ${action} to the collection.`;
+      
+      if (window.confirm(message + '\n\nWould you like to add another artifact?')) {
+        setShowForm(true);
+      }
       
     } catch (error) {
       console.error('Error saving artifact:', error);
