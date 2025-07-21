@@ -686,7 +686,7 @@ const ComputingGalleryManager = () => {
                       )}
                     </div>
                     
-                    <div className="p-4" onClick={(e) => e.stopPropagation()}>
+                    <div className="p-4">
                       <div className="flex items-start justify-between mb-2">
                         <h3 className="text-lg font-semibold text-gray-900">{artifact.name}</h3>
                         <div className="flex items-center gap-1">
