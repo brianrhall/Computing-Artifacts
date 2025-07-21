@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Edit2, Trash2, Plus, Search, Filter, Save, X, CheckCircle, Clock, DollarSign, Grid, List, LogIn, LogOut, User, Shield, Package, Eye, Copy } from 'lucide-react';
+import { Camera, Edit2, Trash2, Plus, Search, Filter, Save, X, CheckCircle, Clock, DollarSign, Grid, List, LogIn, LogOut, User, Shield, Package, Eye, Copy, CheckCircle2 } from 'lucide-react';
 import ExhibitManager from './ExhibitManager';
 
 // Firebase imports
@@ -45,6 +45,8 @@ const ComputingGalleryManager = () => {
   const [filterGroup, setFilterGroup] = useState('all');
   const [viewMode, setViewMode] = useState('grid');
   const [uploading, setUploading] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successModalData, setSuccessModalData] = useState({ name: '', action: '' });
   
   const categories = [
     'Mainframe', 'Minicomputer', 'Microcomputer', 'Personal Computer',
@@ -377,15 +379,13 @@ const ComputingGalleryManager = () => {
         setArtifacts(prevArtifacts => [...prevArtifacts, newArtifact]);
       }
       
-      resetForm();
-      
-      // Show a more informative success message
+      // Show success modal instead of browser confirm
       const action = editingId ? 'updated' : 'added';
-      const message = `✅ Success! "${formData.name}" has been ${action} to the collection.`;
+      setSuccessModalData({ name: formData.name, action });
+      setShowSuccessModal(true);
       
-      if (window.confirm(message + '\n\nWould you like to add another artifact?')) {
-        setShowForm(true);
-      }
+      // Reset form
+      resetForm();
       
     } catch (error) {
       console.error('Error saving artifact:', error);
@@ -827,6 +827,51 @@ const ComputingGalleryManager = () => {
         ) : (
           /* Exhibits Tab */
           <ExhibitManager user={user} isAdmin={isAdmin} artifacts={artifacts} />
+        )}
+
+        {/* Success Modal */}
+        {showSuccessModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg max-w-md w-full p-6 transform transition-all">
+              <div className="flex items-center justify-center mb-4">
+                <div className="bg-green-100 rounded-full p-3">
+                  <CheckCircle2 className="w-8 h-8 text-green-600" />
+                </div>
+              </div>
+              
+              <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">
+                Success!
+              </h2>
+              
+              <p className="text-gray-600 text-center mb-6">
+                <span className="font-semibold">"{successModalData.name}"</span> has been {successModalData.action} to the collection.
+              </p>
+              
+              <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                <p className="text-sm text-gray-600 text-center">
+                  Would you like to add another artifact?
+                </p>
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowSuccessModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                >
+                  No, I'm Done
+                </button>
+                <button
+                  onClick={() => {
+                    setShowSuccessModal(false);
+                    setShowForm(true);
+                  }}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  Yes, Add Another
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Login Modal */}
