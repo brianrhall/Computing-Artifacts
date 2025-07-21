@@ -284,12 +284,12 @@ const ExhibitView = () => {
                   className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer"
                   onClick={() => setSelectedArtifact(artifact)}
                 >
-                  <div className="aspect-video bg-gray-100 relative overflow-hidden">
+                  <div className="aspect-[3/4] bg-gray-100 relative overflow-hidden">
                     {artifact.images && artifact.images[0] ? (
                       <img 
                         src={artifact.images[0]} 
                         alt={artifact.name} 
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-contain"
                       />
                     ) : (
                       <div className="flex items-center justify-center h-full">
