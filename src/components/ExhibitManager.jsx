@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, Edit2, Trash2, X, Save, Upload, Image as ImageIcon, 
-  Grid, List, Eye, Calendar, MapPin, Users
+  Grid, List, Eye, Calendar, MapPin, Users, CheckCircle
 } from 'lucide-react';
 import { db, storage } from '../firebase';
 import { 
@@ -19,6 +19,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [uploading, setUploading] = useState(false);
   const [viewMode, setViewMode] = useState('grid');
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -102,7 +103,12 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
       
       await loadExhibits();
       resetForm();
-      alert('Exhibit saved successfully!');
+      setShowSuccessModal(true);
+      
+      // Auto-hide success modal after 3 seconds
+      setTimeout(() => {
+        setShowSuccessModal(false);
+      }, 3000);
     } catch (error) {
       console.error('Error saving exhibit:', error);
       alert('Error saving exhibit. Please try again.');
@@ -638,6 +644,40 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
           </div>
         </div>
       )}
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-sm w-full animate-fade-in-up">
+            <div className="p-6 text-center">
+              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Success!
+              </h3>
+              <p className="text-gray-600">
+                Your exhibit has been {editingId ? 'updated' : 'created'} successfully.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style jsx>{`
+        @keyframes fade-in-up {
+          0% {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        .animate-fade-in-up {
+          animation: fade-in-up 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 };
