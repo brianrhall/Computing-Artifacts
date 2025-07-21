@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Camera, Edit2, Trash2, Plus, Search, Filter, Save, X, CheckCircle, Clock, DollarSign, Grid, List, LogIn, LogOut, User, Shield, Package, Eye, Copy, CheckCircle2 } from 'lucide-react';
 import ExhibitManager from './ExhibitManager';
+import ArtifactDetailModal from './ArtifactDetailModal';
 
 // Firebase imports
 import { auth, googleProvider, db, storage } from '../firebase';
@@ -47,6 +48,7 @@ const ComputingGalleryManager = () => {
   const [uploading, setUploading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successModalData, setSuccessModalData] = useState({ name: '', action: '' });
+  const [selectedArtifact, setSelectedArtifact] = useState(null);
   
   const categories = [
     'Mainframe', 'Minicomputer', 'Microcomputer', 'Personal Computer',
@@ -505,6 +507,10 @@ const ComputingGalleryManager = () => {
     }
   };
 
+  const handleArtifactClick = (artifact) => {
+    setSelectedArtifact(artifact);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto p-6">
@@ -658,7 +664,11 @@ const ComputingGalleryManager = () => {
             {viewMode === 'grid' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredArtifacts.map(artifact => (
-                  <div key={artifact.id} className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                  <div 
+                    key={artifact.id} 
+                    className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                    onClick={() => handleArtifactClick(artifact)}
+                  >
                     <div className="aspect-portrait bg-gray-100 relative overflow-hidden rounded-t-lg">
                       {artifact.images && artifact.images[0] ? (
                         <img src={artifact.images[0]} alt={artifact.name} className="w-full h-full object-cover" />
@@ -676,7 +686,7 @@ const ComputingGalleryManager = () => {
                       )}
                     </div>
                     
-                    <div className="p-4">
+                    <div className="p-4" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-start justify-between mb-2">
                         <h3 className="text-lg font-semibold text-gray-900">{artifact.name}</h3>
                         <div className="flex items-center gap-1">
@@ -708,7 +718,10 @@ const ComputingGalleryManager = () => {
                       {isAdmin && (
                         <div className="flex gap-2">
                           <button
-                            onClick={() => handleEdit(artifact)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEdit(artifact);
+                            }}
                             className="flex-1 px-3 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors flex items-center justify-center gap-1"
                             title="Edit artifact"
                           >
@@ -716,7 +729,10 @@ const ComputingGalleryManager = () => {
                             <span className="hidden sm:inline">Edit</span>
                           </button>
                           <button
-                            onClick={() => handleDuplicate(artifact)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDuplicate(artifact);
+                            }}
                             className="flex-1 px-3 py-1 bg-purple-50 text-purple-600 rounded hover:bg-purple-100 transition-colors flex items-center justify-center gap-1"
                             title="Duplicate artifact"
                           >
@@ -724,7 +740,10 @@ const ComputingGalleryManager = () => {
                             <span className="hidden sm:inline">Duplicate</span>
                           </button>
                           <button
-                            onClick={() => handleDelete(artifact.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(artifact.id);
+                            }}
                             className="flex-1 px-3 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors flex items-center justify-center gap-1"
                             title="Delete artifact"
                           >
@@ -760,7 +779,11 @@ const ComputingGalleryManager = () => {
                   </thead>
                   <tbody className="divide-y">
                     {filteredArtifacts.map(artifact => (
-                      <tr key={artifact.id} className="hover:bg-gray-50">
+                      <tr 
+                        key={artifact.id} 
+                        className="hover:bg-gray-50 cursor-pointer"
+                        onClick={() => handleArtifactClick(artifact)}
+                      >
                         <td className="px-4 py-3">
                           <div>
                             <div className="font-medium text-gray-900">{artifact.name}</div>
@@ -791,7 +814,7 @@ const ComputingGalleryManager = () => {
                           </td>
                         )}
                         {isAdmin && (
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                             <div className="flex gap-2">
                               <button
                                 onClick={() => handleEdit(artifact)}
@@ -827,6 +850,15 @@ const ComputingGalleryManager = () => {
         ) : (
           /* Exhibits Tab */
           <ExhibitManager user={user} isAdmin={isAdmin} artifacts={artifacts} />
+        )}
+
+        {/* Artifact Detail Modal */}
+        {selectedArtifact && (
+          <ArtifactDetailModal
+            artifact={selectedArtifact}
+            isAdmin={isAdmin}
+            onClose={() => setSelectedArtifact(null)}
+          />
         )}
 
         {/* Success Modal */}
