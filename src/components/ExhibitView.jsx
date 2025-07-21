@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
   Calendar, MapPin, User, ArrowLeft, Grid, List, 
-  Camera, Clock, DollarSign, Shield
+  Camera, Clock, DollarSign, Shield, Eye
 } from 'lucide-react';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 
 const ExhibitView = () => {
   const { exhibitId } = useParams();
@@ -14,6 +15,31 @@ const ExhibitView = () => {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('grid');
   const [selectedArtifact, setSelectedArtifact] = useState(null);
+  const [user, setUser] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Check authentication status
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setUser(user);
+        
+        // Check if user is admin
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
+        
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setIsAdmin(userData?.role === 'admin');
+        }
+      } else {
+        setUser(null);
+        setIsAdmin(false);
+      }
+    });
+    
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (exhibitId) {
@@ -80,24 +106,79 @@ const ExhibitView = () => {
     );
   }
 
-  if (!exhibit.published) {
+  // Check if exhibit is unpublished and user is not admin
+  if (!exhibit.published && !isAdmin) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Shield className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Exhibit Not Available</h2>
-          <p className="text-gray-600 mb-4">This exhibit is currently being prepared.</p>
-          <Link to="/" className="text-blue-600 hover:text-blue-800 flex items-center gap-2 justify-center">
-            <ArrowLeft className="w-4 h-4" />
-            Back to Gallery
-          </Link>
+        <div className="max-w-md w-full mx-auto p-6">
+          <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+            {/* Show exhibit image if available */}
+            {exhibit.headerImage && (
+              <div className="relative h-48 bg-gray-900 overflow-hidden">
+                <img 
+                  src={exhibit.headerImage} 
+                  alt={exhibit.name}
+                  className="w-full h-full object-cover opacity-70"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+              </div>
+            )}
+            
+            <div className="p-6 text-center">
+              <Shield className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">{exhibit.name}</h2>
+              <p className="text-gray-600 mb-4">This exhibit is currently being prepared.</p>
+              
+              {/* Show date range if available */}
+              {(exhibit.startDate || exhibit.endDate) && (
+                <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                  <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
+                    <Calendar className="w-4 h-4 text-gray-400" />
+                    <span>
+                      {exhibit.startDate && new Date(exhibit.startDate).toLocaleDateString('en-US', { 
+                        month: 'long', 
+                        day: 'numeric', 
+                        year: 'numeric' 
+                      })}
+                      {exhibit.endDate && ` - ${new Date(exhibit.endDate).toLocaleDateString('en-US', { 
+                        month: 'long', 
+                        day: 'numeric', 
+                        year: 'numeric' 
+                      })}`}
+                    </span>
+                  </div>
+                </div>
+              )}
+              
+              <Link to="/" className="text-blue-600 hover:text-blue-800 flex items-center gap-2 justify-center">
+                <ArrowLeft className="w-4 h-4" />
+                Back to Gallery
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
+  // Show admin preview banner if exhibit is unpublished and user is admin
+  const showAdminPreview = !exhibit.published && isAdmin;
+
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Admin Preview Banner */}
+      {showAdminPreview && (
+        <div className="bg-yellow-50 border-b border-yellow-200">
+          <div className="max-w-7xl mx-auto px-6 py-3">
+            <div className="flex items-center gap-2 text-sm text-yellow-800">
+              <Eye className="w-4 h-4" />
+              <span className="font-medium">Admin Preview:</span>
+              <span>This exhibit is unpublished and only visible to administrators.</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header Image - Taller banner style */}
       {exhibit.headerImage && (
         <div className="relative h-80 md:h-[28rem] bg-gray-900 overflow-hidden">
