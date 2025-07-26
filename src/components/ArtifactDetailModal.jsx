@@ -228,6 +228,19 @@ const ArtifactDetailModal = ({ artifact, isAdmin, onClose }) => {
                   </div>
                 </div>
                 
+                {/* Description */}
+                {artifact.description && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <FileText className="w-5 h-5" />
+                      Description
+                    </h3>
+                    <p className="text-gray-700 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg">
+                      {artifact.description}
+                    </p>
+                  </div>
+                )}
+                
                 {/* Value and Acquisition - Admin Only */}
                 {isAdmin && (artifact.value || artifact.acquisitionDate || artifact.donor) && (
                   <div>
@@ -290,19 +303,6 @@ const ArtifactDetailModal = ({ artifact, isAdmin, onClose }) => {
                 )}
               </div>
             </div>
-            
-            {/* Description - Full Width */}
-            {artifact.description && (
-              <div className="mt-8">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <FileText className="w-5 h-5" />
-                  Description
-                </h3>
-                <p className="text-gray-700 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg">
-                  {artifact.description}
-                </p>
-              </div>
-            )}
           </div>
         </div>
       </div>
