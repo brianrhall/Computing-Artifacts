@@ -276,33 +276,33 @@ const ArtifactDetailModal = ({ artifact, isAdmin, onClose }) => {
                     </div>
                   </div>
                 )}
-                
-                {/* Task Management - Admin Only */}
-                {isAdmin && (artifact.status || artifact.taskNotes) && (
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                      <Wrench className="w-5 h-5" />
-                      Task Management
-                    </h3>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between py-2 border-b">
-                        <span className="text-gray-600">Status</span>
-                        <span className="font-medium flex items-center gap-2">
-                          {getStatusIcon(artifact.status)}
-                          {artifact.status}
-                        </span>
-                      </div>
-                      {artifact.taskNotes && (
-                        <div className="py-2">
-                          <span className="text-gray-600 block mb-2">Task Notes</span>
-                          <p className="text-sm bg-gray-50 p-3 rounded">{artifact.taskNotes}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
+            
+            {/* Task Management - Admin Only (Moved outside the grid) */}
+            {isAdmin && (artifact.status || artifact.taskNotes) && (
+              <div className="mt-8 border-t pt-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <Wrench className="w-5 h-5" />
+                  Task Management
+                </h3>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between py-2 border-b">
+                    <span className="text-gray-600">Status</span>
+                    <span className="font-medium flex items-center gap-2">
+                      {getStatusIcon(artifact.status)}
+                      {artifact.status}
+                    </span>
+                  </div>
+                  {artifact.taskNotes && (
+                    <div className="py-2">
+                      <span className="text-gray-600 block mb-2">Task Notes</span>
+                      <p className="text-sm bg-gray-50 p-3 rounded">{artifact.taskNotes}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
