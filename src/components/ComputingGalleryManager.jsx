@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Camera, Edit2, Trash2, Plus, Search, Filter, Save, X, CheckCircle, Clock, DollarSign, Grid, List, LogIn, LogOut, User, Shield, Package, Eye, Copy, CheckCircle2, Layers } from 'lucide-react';
 import ExhibitManager from './ExhibitManager';
 import ArtifactDetailModal from './ArtifactDetailModal';
@@ -30,6 +31,8 @@ import {
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 const ComputingGalleryManager = () => {
+  const location = useLocation();
+  
   // Authentication states
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -85,6 +88,15 @@ const ComputingGalleryManager = () => {
     taskNotes: '',
     images: []
   });
+
+  // Read tab from URL parameter on mount and when location changes
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['artifacts', 'exhibits', 'displayGroups'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [location]);
 
   // Real email/password login
   const handleEmailLogin = async (e) => {
