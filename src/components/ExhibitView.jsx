@@ -97,9 +97,9 @@ const ExhibitView = () => {
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Exhibit Not Found</h2>
           <p className="text-gray-600 mb-4">The exhibit you're looking for doesn't exist.</p>
-          <Link to="/" className="text-blue-600 hover:text-blue-800 flex items-center gap-2 justify-center">
+          <Link to="/?tab=exhibits" className="text-blue-600 hover:text-blue-800 flex items-center gap-2 justify-center">
             <ArrowLeft className="w-4 h-4" />
-            Back to Gallery
+            Back to Exhibits
           </Link>
         </div>
       </div>
@@ -150,9 +150,9 @@ const ExhibitView = () => {
                 </div>
               )}
               
-              <Link to="/" className="text-blue-600 hover:text-blue-800 flex items-center gap-2 justify-center">
+              <Link to="/?tab=exhibits" className="text-blue-600 hover:text-blue-800 flex items-center gap-2 justify-center">
                 <ArrowLeft className="w-4 h-4" />
-                Back to Gallery
+                Back to Exhibits
               </Link>
             </div>
           </div>
@@ -206,11 +206,11 @@ const ExhibitView = () => {
       <div className="max-w-7xl mx-auto p-6">
         {/* Back Button */}
         <Link 
-          to="/" 
+          to="/?tab=exhibits" 
           className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Gallery
+          Back to Exhibits
         </Link>
         
         {/* Exhibit Info */}
