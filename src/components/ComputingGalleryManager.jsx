@@ -56,7 +56,7 @@ const ComputingGalleryManager = () => {
   const categories = [
     'Mainframe', 'Minicomputer', 'Microcomputer', 'Personal Computer',
     'Laptop', 'Server', 'Storage Device', 'Peripheral', 'Component',
-    'Mobile Device', 'Media Player', 'Software', 'Documentation', 'Marketing', 'Other'
+    'Mobile Device', 'Media Player', 'Software', 'Documentation', 'Marketing', 'Book', 'Clothing', 'Other'
   ];
   
   // Dynamic display groups from database
