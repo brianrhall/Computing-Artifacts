@@ -232,7 +232,7 @@ const GalleryManager = ({ onArtifactsUpdate }) => {
     }
   }, [artifacts, onArtifactsUpdate]);
 
-  const categories = ['Personal Computer', 'Mainframe', 'Mini Computer', 'Calculator', 'Terminal', 'Storage Device', 'Networking', 'Gaming Console', 'Handheld', 'Other'];
+  const categories = ['Personal Computer', 'Mainframe', 'Mini Computer', 'Calculator', 'Terminal', 'Storage Device', 'Networking', 'Gaming Console', 'Handheld', 'Book', 'Clothing', 'Other'];
   
   const displayGroups = [...new Set(artifacts.map(a => a.displayGroup).filter(Boolean)), 'Early PCs', 'Home Computers', 'Business Systems', 'Gaming', 'Portables'];
 

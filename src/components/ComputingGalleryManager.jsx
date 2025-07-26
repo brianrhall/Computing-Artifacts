@@ -50,11 +50,11 @@ const ComputingGalleryManager = () => {
   const [successModalData, setSuccessModalData] = useState({ name: '', action: '' });
   const [selectedArtifact, setSelectedArtifact] = useState(null);
   
-  const categories = [
-    'Mainframe', 'Minicomputer', 'Microcomputer', 'Personal Computer',
-    'Laptop', 'Server', 'Storage Device', 'Peripheral', 'Component',
-    'Mobile Device', 'Media Player', 'Software', 'Documentation', 'Marketing', 'Other'
-  ];
+const categories = [
+  'Mainframe', 'Minicomputer', 'Microcomputer', 'Personal Computer',
+  'Laptop', 'Server', 'Storage Device', 'Peripheral', 'Component',
+  'Mobile Device', 'Media Player', 'Software', 'Documentation', 'Marketing', 'Book', 'Clothing', 'Other'
+];
   
   const displayGroups = [
     'Early Computing Era', 'Personal Computer Revolution', 
