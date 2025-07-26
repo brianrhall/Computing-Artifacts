@@ -285,29 +285,53 @@ const ComputingGalleryManager = () => {
     loadDisplayGroups();
   }, [activeTab]); // Reload when switching tabs
 
-  // Filter artifacts based on search and filters
-  useEffect(() => {
-    let filtered = artifacts;
-    
-    if (searchTerm) {
-      filtered = filtered.filter(a => 
-        a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        a.manufacturer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        a.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        a.description.toLowerCase().includes(searchTerm.toLowerCase())
+// Updated search filter function to include year and other fields
+useEffect(() => {
+  let filtered = artifacts;
+  
+  if (searchTerm) {
+    filtered = filtered.filter(a => {
+      // Convert search term to lowercase for case-insensitive searching
+      const search = searchTerm.toLowerCase();
+      
+      // Check all relevant fields
+      return (
+        // Basic fields
+        (a.name && a.name.toLowerCase().includes(search)) ||
+        (a.manufacturer && a.manufacturer.toLowerCase().includes(search)) ||
+        (a.model && a.model.toLowerCase().includes(search)) ||
+        (a.description && a.description.toLowerCase().includes(search)) ||
+        
+        // Year field - handle as string to allow partial matches (e.g., "199" matches "1991")
+        (a.year && a.year.toString().includes(searchTerm)) ||
+        
+        // Additional fields for comprehensive search
+        (a.os && a.os.toLowerCase().includes(search)) ||
+        (a.category && a.category.toLowerCase().includes(search)) ||
+        (a.displayGroup && a.displayGroup.toLowerCase().includes(search)) ||
+        (a.location && a.location.toLowerCase().includes(search)) ||
+        (a.condition && a.condition.toLowerCase().includes(search)) ||
+        (a.serialNumber && a.serialNumber.toLowerCase().includes(search)) ||
+        
+        // For admin-specific fields (only if you want these searchable)
+        (a.donor && a.donor.toLowerCase().includes(search)) ||
+        (a.taskNotes && a.taskNotes.toLowerCase().includes(search))
       );
-    }
-    
-    if (filterCategory !== 'all') {
-      filtered = filtered.filter(a => a.category === filterCategory);
-    }
-    
-    if (filterGroup !== 'all') {
-      filtered = filtered.filter(a => a.displayGroup === filterGroup);
-    }
-    
-    setFilteredArtifacts(filtered);
-  }, [searchTerm, filterCategory, filterGroup, artifacts]);
+    });
+  }
+  
+  // Apply category filter
+  if (filterCategory !== 'all') {
+    filtered = filtered.filter(a => a.category === filterCategory);
+  }
+  
+  // Apply display group filter
+  if (filterGroup !== 'all') {
+    filtered = filtered.filter(a => a.displayGroup === filterGroup);
+  }
+  
+  setFilteredArtifacts(filtered);
+}, [searchTerm, filterCategory, filterGroup, artifacts]);
 
   // Updated image upload handler using Firebase Storage
   const handleImageUpload = async (e) => {
