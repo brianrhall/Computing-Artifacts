@@ -100,20 +100,20 @@ service cloud.firestore {
     }
     
     // Add to your existing rules
-		match /exhibits/{document=**} {
-  		allow read: if true;
-  		// Only admins can write
-  		allow write: if request.auth != null && 
-    		get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-			}
+	match /exhibits/{document=**} {
+	allow read: if true;
+	// Only admins can write
+	allow write: if request.auth != null && 
+	get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+	}
     
-		// Display Groups rules
-    match /displayGroups/{document=**} {
-      allow read: if true;
-      // Only admins can write
-      allow write: if request.auth != null && 
+    // Display Groups rules
+	match /displayGroups/{document=**} {
+	allow read: if true;
+	// Only admins can write
+	allow write: if request.auth != null && 
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
+	}
   }
 }
 
