@@ -3,6 +3,7 @@ import { Camera, Edit2, Trash2, Plus, Search, Filter, Save, X, CheckCircle, Cloc
 import ExhibitManager from './ExhibitManager';
 import ArtifactDetailModal from './ArtifactDetailModal';
 import DisplayGroupsManager from './DisplayGroupsManager';
+import ImageManagement from './ImageManagement';
 
 // Firebase imports
 import { auth, googleProvider, db, storage } from '../firebase';
@@ -343,11 +344,11 @@ const ComputingGalleryManager = () => {
     }
   };
 
-  // Function to remove image from form (but not from Firebase Storage yet)
-  const removeImage = (index) => {
+  // Add this new function to handle image order updates
+  const handleImagesUpdate = (newImages) => {
     setFormData(prevData => ({
       ...prevData,
-      images: prevData.images.filter((_, i) => i !== index)
+      images: newImages
     }));
   };
 
@@ -441,6 +442,7 @@ const ComputingGalleryManager = () => {
     });
     setShowForm(false);
     setEditingId(null);
+    setUploading(false);
   };
 
   const handleEdit = (artifact) => {
@@ -699,19 +701,22 @@ const ComputingGalleryManager = () => {
                   >
                     <div className="aspect-w-16 aspect-h-9 relative bg-gray-100 rounded-t-lg overflow-hidden">
                       {artifact.images && artifact.images.length > 0 ? (
-                        <img 
-                          src={artifact.images[0]} 
-                          alt={artifact.name}
-                          className="object-cover w-full h-48"
-                        />
+                        <>
+                          <img 
+                            src={artifact.images[0]} 
+                            alt={artifact.name}
+                            className="object-cover w-full h-48"
+                          />
+                          {artifact.images.length > 1 && (
+                            <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                              <Camera className="w-3 h-3" />
+                              {artifact.images.length}
+                            </div>
+                          )}
+                        </>
                       ) : (
                         <div className="flex items-center justify-center h-48 text-gray-400">
                           <Camera className="w-12 h-12" />
-                        </div>
-                      )}
-                      {artifact.images && artifact.images.length > 1 && (
-                        <div className="absolute top-2 right-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs">
-                          +{artifact.images.length - 1} more
                         </div>
                       )}
                     </div>
@@ -1174,48 +1179,15 @@ const ComputingGalleryManager = () => {
                   </div>
                 </div>
                 
-                {/* Section: Images */}
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Images</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Upload Images
-                      </label>
-                      <input
-                        type="file"
-                        multiple
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        disabled={uploading}
-                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                      />
-                      {uploading && (
-                        <p className="text-sm text-gray-500 mt-2">Uploading images...</p>
-                      )}
-                    </div>
-                    
-                    {formData.images && formData.images.length > 0 && (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                        {formData.images.map((url, index) => (
-                          <div key={index} className="relative group">
-                            <img
-                              src={url}
-                              alt={`Upload ${index + 1}`}
-                              className="w-full h-24 object-cover rounded-lg"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => removeImage(index)}
-                              className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                {/* Section: Images with Drag-and-Drop Reordering */}
+                <div className="sm:col-span-2">
+                  <ImageManagement
+                    images={formData.images}
+                    onImagesUpdate={handleImagesUpdate}
+                    onImageUpload={handleImageUpload}
+                    uploading={uploading}
+                    disabled={!isAdmin}
+                  />
                 </div>
                 
                 {/* Action Buttons */}
