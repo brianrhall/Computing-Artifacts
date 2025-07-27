@@ -71,6 +71,19 @@ const VisitorArtifactCard = ({ artifact, onClick }) => {
         {artifact.description && (
           <p className="text-sm text-gray-600 mt-2 line-clamp-2">{artifact.description}</p>
         )}
+
+        {artifact.condition && (
+          <div className="mt-2">
+            <span className={`text-xs px-2 py-1 rounded ${
+              artifact.condition === 'Mint' || artifact.condition === 'Excellent' ? 'bg-green-100 text-green-800' :
+              artifact.condition === 'Good' || artifact.condition === 'Working' ? 'bg-blue-100 text-blue-800' :
+              artifact.condition === 'Fair' || artifact.condition === 'Restored' ? 'bg-yellow-100 text-yellow-800' :
+              'bg-red-100 text-red-800'
+              }`}>
+              {artifact.condition}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

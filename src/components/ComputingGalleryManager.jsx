@@ -732,7 +732,7 @@ const ComputingGalleryManager = () => {
                       </p>
                       
                       <div className="flex flex-wrap gap-2 mb-3">
-                        <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                        <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
                           {artifact.category}
                         </span>
                         {artifact.year && (
@@ -741,7 +741,12 @@ const ComputingGalleryManager = () => {
                           </span>
                         )}
                         {artifact.condition && (
-                          <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
+                          <span className={`text-xs px-2 py-1 rounded-full ${
+                            artifact.condition === 'Mint' || artifact.condition === 'Excellent' ? 'bg-green-100 text-green-800' :
+                            artifact.condition === 'Good' || artifact.condition === 'Working' ? 'bg-blue-100 text-blue-800' :
+                            artifact.condition === 'Fair' || artifact.condition === 'Restored' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                            }`}>
                             {artifact.condition}
                           </span>
                         )}
