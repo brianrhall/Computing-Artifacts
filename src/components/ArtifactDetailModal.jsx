@@ -21,8 +21,8 @@ const ArtifactDetailModal = ({ artifact, isAdmin, onClose }) => {
   const getPriorityColor = (priority) => {
     switch(priority) {
       case 'High': return 'text-red-600 bg-red-50';
-      case 'Medium': return 'text-yellow-600 bg-yellow-50';
-      case 'Low': return 'text-green-600 bg-green-50';
+      case 'Medium': return 'text-orange-600 bg-orange-50';
+      case 'Low': return 'text-yellow-600 bg-yellow-50';
       case 'None': return 'text-gray-600 bg-gray-50';
       default: return 'text-gray-600 bg-gray-50';
     }
@@ -57,7 +57,6 @@ const ArtifactDetailModal = ({ artifact, isAdmin, onClose }) => {
             <h2 className="text-2xl font-bold text-gray-900">{artifact.name}</h2>
             <div className="flex items-center gap-2">
               {getStatusIcon(artifact.status)}
-              {/* ONLY SHOW PRIORITY TO ADMINS */}
               {isAdmin && artifact.priority && artifact.priority !== 'None' && (
                 <span className={`px-2 py-1 rounded text-xs font-medium ${getPriorityColor(artifact.priority)}`}>
                   {artifact.priority}
@@ -114,7 +113,7 @@ const ArtifactDetailModal = ({ artifact, isAdmin, onClose }) => {
                               className={`w-2 h-2 rounded-full transition-all ${
                                 idx === currentImageIndex 
                                   ? 'bg-white w-8' 
-                                  : 'bg-white bg-opacity-50'
+                                  : 'bg-white bg-opacity-50 hover:bg-opacity-75'
                               }`}
                             />
                           ))}
@@ -124,19 +123,21 @@ const ArtifactDetailModal = ({ artifact, isAdmin, onClose }) => {
                   </div>
                 ) : (
                   <div className="aspect-[3/4] bg-gray-100 rounded-lg flex items-center justify-center">
-                    <Camera className="w-16 h-16 text-gray-400" />
+                    <Camera className="w-16 h-16 text-gray-300" />
                   </div>
                 )}
                 
-                {/* Thumbnails */}
+                {/* Thumbnail strip */}
                 {images.length > 1 && (
                   <div className="mt-4 grid grid-cols-4 gap-2">
                     {images.map((img, idx) => (
                       <button
                         key={idx}
                         onClick={() => setCurrentImageIndex(idx)}
-                        className={`aspect-square bg-gray-100 rounded overflow-hidden border-2 transition-all ${
-                          idx === currentImageIndex ? 'border-blue-500' : 'border-transparent'
+                        className={`aspect-[3/4] bg-gray-100 rounded overflow-hidden border-2 transition-all ${
+                          idx === currentImageIndex 
+                            ? 'border-blue-500' 
+                            : 'border-transparent hover:border-gray-300'
                         }`}
                       >
                         <img 
@@ -161,10 +162,7 @@ const ArtifactDetailModal = ({ artifact, isAdmin, onClose }) => {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between py-2 border-b">
                       <span className="text-gray-600">Category</span>
-                      <span className="font-medium flex items-center gap-1">
-                        <Tag className="w-4 h-4" />
-                        {artifact.category}
-                      </span>
+                      <span className="font-medium">{artifact.category}</span>
                     </div>
                     {artifact.manufacturer && (
                       <div className="flex items-center justify-between py-2 border-b">
@@ -178,7 +176,7 @@ const ArtifactDetailModal = ({ artifact, isAdmin, onClose }) => {
                         <span className="font-medium">{artifact.model}</span>
                       </div>
                     )}
-                    {artifact.serialNumber && (
+                    {isAdmin && artifact.serialNumber && (
                       <div className="flex items-center justify-between py-2 border-b">
                         <span className="text-gray-600">Serial Number</span>
                         <span className="font-medium font-mono text-sm">{artifact.serialNumber}</span>
@@ -230,6 +228,19 @@ const ArtifactDetailModal = ({ artifact, isAdmin, onClose }) => {
                   </div>
                 </div>
                 
+                {/* Description */}
+                {artifact.description && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <FileText className="w-5 h-5" />
+                      Description
+                    </h3>
+                    <p className="text-gray-700 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg">
+                      {artifact.description}
+                    </p>
+                  </div>
+                )}
+                
                 {/* Value and Acquisition - Admin Only */}
                 {isAdmin && (artifact.value || artifact.acquisitionDate || artifact.donor) && (
                   <div>
@@ -265,52 +276,31 @@ const ArtifactDetailModal = ({ artifact, isAdmin, onClose }) => {
                     </div>
                   </div>
                 )}
-                
-                {/* Task Management - Admin Only */}
-                {isAdmin && (artifact.status || artifact.taskNotes) && (
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                      <Wrench className="w-5 h-5" />
-                      Task Management
-                    </h3>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between py-2 border-b">
-                        <span className="text-gray-600">Status</span>
-                        <span className="font-medium flex items-center gap-2">
-                          {getStatusIcon(artifact.status)}
-                          {artifact.status}
-                        </span>
-                      </div>
-                      {artifact.priority && artifact.priority !== 'None' && (
-                        <div className="flex items-center justify-between py-2 border-b">
-                          <span className="text-gray-600">Priority</span>
-                          <span className={`px-2 py-1 rounded text-xs font-medium ${getPriorityColor(artifact.priority)}`}>
-                            {artifact.priority}
-                          </span>
-                        </div>
-                      )}
-                      {artifact.taskNotes && (
-                        <div className="py-2">
-                          <span className="text-gray-600 block mb-2">Task Notes</span>
-                          <p className="text-sm bg-gray-50 p-3 rounded">{artifact.taskNotes}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
             
-            {/* Description - Full Width */}
-            {artifact.description && (
-              <div className="mt-8">
+            {/* Task Management - Admin Only (Moved outside the grid) */}
+            {isAdmin && (artifact.status || artifact.taskNotes) && (
+              <div className="mt-8 border-t pt-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <FileText className="w-5 h-5" />
-                  Description
+                  <Wrench className="w-5 h-5" />
+                  Task Management
                 </h3>
-                <p className="text-gray-700 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg">
-                  {artifact.description}
-                </p>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between py-2 border-b">
+                    <span className="text-gray-600">Status</span>
+                    <span className="font-medium flex items-center gap-2">
+                      {getStatusIcon(artifact.status)}
+                      {artifact.status}
+                    </span>
+                  </div>
+                  {artifact.taskNotes && (
+                    <div className="py-2">
+                      <span className="text-gray-600 block mb-2">Task Notes</span>
+                      <p className="text-sm bg-gray-50 p-3 rounded">{artifact.taskNotes}</p>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>

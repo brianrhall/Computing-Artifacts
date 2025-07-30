@@ -71,12 +71,25 @@ const VisitorArtifactCard = ({ artifact, onClick }) => {
         {artifact.description && (
           <p className="text-sm text-gray-600 mt-2 line-clamp-2">{artifact.description}</p>
         )}
+
+        {artifact.condition && (
+          <div className="mt-2">
+            <span className={`text-xs px-2 py-1 rounded ${
+              artifact.condition === 'Mint' || artifact.condition === 'Excellent' ? 'bg-green-100 text-green-800' :
+              artifact.condition === 'Good' || artifact.condition === 'Working' ? 'bg-blue-100 text-blue-800' :
+              artifact.condition === 'Fair' || artifact.condition === 'Restored' ? 'bg-yellow-100 text-yellow-800' :
+              'bg-red-100 text-red-800'
+              }`}>
+              {artifact.condition}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
-// Modal component for detailed artifact view - NO PRIORITY SHOWN
+// Modal component for detailed artifact view
 const ArtifactModal = ({ artifact, onClose }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   
@@ -111,129 +124,109 @@ const ArtifactModal = ({ artifact, onClose }) => {
                   alt={artifact.name} 
                   className="absolute inset-0 w-full h-full object-contain bg-gray-100 rounded-lg" 
                 />
+                {allImages.length > 1 && (
+                  <>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCurrentImageIndex((currentImageIndex - 1 + allImages.length) % allImages.length);
+                      }}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full p-2 hover:bg-opacity-70"
+                    >
+                      <ChevronLeft size={24} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCurrentImageIndex((currentImageIndex + 1) % allImages.length);
+                      }}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full p-2 hover:bg-opacity-70"
+                    >
+                      <ChevronRight size={24} />
+                    </button>
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                      {allImages.map((_, idx) => (
+                        <button
+                          key={idx}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCurrentImageIndex(idx);
+                          }}
+                          className={`w-2 h-2 rounded-full transition ${
+                            idx === currentImageIndex ? 'bg-white' : 'bg-white bg-opacity-50'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
-              
-              {allImages.length > 1 && (
-                <>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
-                    }}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full p-1.5 hover:bg-opacity-70 transition"
-                  >
-                    <ChevronLeft size={20} />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setCurrentImageIndex((prev) => (prev + 1) % allImages.length);
-                    }}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full p-1.5 hover:bg-opacity-70 transition"
-                  >
-                    <ChevronRight size={20} />
-                  </button>
-                  
-                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-                    {allImages.map((_, idx) => (
-                      <button
-                        key={idx}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setCurrentImageIndex(idx);
-                        }}
-                        className={`w-2 h-2 rounded-full transition-all ${
-                          idx === currentImageIndex 
-                            ? 'bg-gray-800 w-8' 
-                            : 'bg-gray-400 hover:bg-gray-600'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
             </div>
           )}
           
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-lg font-semibold mb-3 text-gray-800">Details</h3>
-                <div className="space-y-2 text-sm">
-                  {artifact.category && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Category:</span>
-                      <span className="font-medium">{artifact.category}</span>
-                    </div>
-                  )}
-                  {artifact.manufacturer && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Manufacturer:</span>
-                      <span className="font-medium">{artifact.manufacturer}</span>
-                    </div>
-                  )}
-                  {artifact.model && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Model:</span>
-                      <span className="font-medium">{artifact.model}</span>
-                    </div>
-                  )}
-                  {artifact.serialNumber && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Serial Number:</span>
-                      <span className="font-medium font-mono text-xs">{artifact.serialNumber}</span>
-                    </div>
-                  )}
-                  {(artifact.year || artifact.date) && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Year:</span>
-                      <span className="font-medium">{artifact.year || artifact.date}</span>
-                    </div>
-                  )}
-                  {artifact.os && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Operating System:</span>
-                      <span className="font-medium">{artifact.os}</span>
-                    </div>
-                  )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h3 className="text-lg font-semibold mb-3">Basic Information</h3>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Category:</span>
+                  <span className="font-medium">{artifact.category}</span>
                 </div>
+                {artifact.date && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Year/Date:</span>
+                    <span className="font-medium">{artifact.date}</span>
+                  </div>
+                )}
+                {artifact.manufacturer && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Manufacturer:</span>
+                    <span className="font-medium">{artifact.manufacturer}</span>
+                  </div>
+                )}
+                {artifact.model && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Model:</span>
+                    <span className="font-medium">{artifact.model}</span>
+                  </div>
+                )}
+                {artifact.os && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Operating System:</span>
+                    <span className="font-medium">{artifact.os}</span>
+                  </div>
+                )}
               </div>
-              
-              <div>
-                <h3 className="text-lg font-semibold mb-3 text-gray-800">Display Information</h3>
-                <div className="space-y-2 text-sm">
-                  {artifact.status && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Status:</span>
-                      <span className="font-medium">{artifact.status}</span>
-                    </div>
-                  )}
-                  {artifact.condition && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Condition:</span>
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        artifact.condition === 'Mint' || artifact.condition === 'Excellent' ? 'bg-green-100 text-green-800' :
-                        artifact.condition === 'Good' || artifact.condition === 'Working' ? 'bg-blue-100 text-blue-800' :
-                        artifact.condition === 'Fair' || artifact.condition === 'Restored' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
-                        {artifact.condition}
-                      </span>
-                    </div>
-                  )}
-                  {artifact.displayGroup && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Display Group:</span>
-                      <span className="font-medium">{artifact.displayGroup}</span>
-                    </div>
-                  )}
-                  {artifact.location && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Location:</span>
-                      <span className="font-medium">{artifact.location}</span>
-                    </div>
-                  )}
-                </div>
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-semibold mb-3">Display Information</h3>
+              <div className="space-y-2">
+                {artifact.condition && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Condition:</span>
+                    <span className={`px-2 py-1 rounded text-xs ${
+                      artifact.condition === 'Mint' || artifact.condition === 'Excellent' ? 'bg-green-100 text-green-800' :
+                      artifact.condition === 'Good' || artifact.condition === 'Working' ? 'bg-blue-100 text-blue-800' :
+                      artifact.condition === 'Fair' || artifact.condition === 'Restored' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {artifact.condition}
+                    </span>
+                  </div>
+                )}
+                {artifact.displayGroup && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Display Group:</span>
+                    <span className="font-medium">{artifact.displayGroup}</span>
+                  </div>
+                )}
+                {artifact.location && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Location:</span>
+                    <span className="font-medium">{artifact.location}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -336,67 +329,61 @@ const GalleryVisitorView = ({ artifacts: providedArtifacts }) => {
           <p className="text-gray-600 mt-2">Explore our collection of computing history</p>
         </div>
       </div>
-      
-      {/* Stats Bar */}
-      <div className="bg-gray-100 border-b">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex flex-wrap gap-4 md:gap-8">
-            <div className="flex items-center gap-2">
-              <Monitor className="w-5 h-5 text-gray-600" />
-              <span className="text-sm font-medium text-gray-700">{stats.total} Artifacts</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Tag className="w-5 h-5 text-gray-600" />
-              <span className="text-sm font-medium text-gray-700">{stats.categories} Categories</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Grid className="w-5 h-5 text-gray-600" />
-              <span className="text-sm font-medium text-gray-700">{stats.displayGroups} Display Groups</span>
-            </div>
+
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="bg-white rounded-lg shadow p-6 text-center">
+            <div className="text-3xl font-bold text-blue-600">{stats.total}</div>
+            <div className="text-gray-600">Total Artifacts</div>
+          </div>
+          <div className="bg-white rounded-lg shadow p-6 text-center">
+            <div className="text-3xl font-bold text-purple-600">{stats.categories}</div>
+            <div className="text-gray-600">Categories</div>
+          </div>
+          <div className="bg-white rounded-lg shadow p-6 text-center">
+            <div className="text-3xl font-bold text-green-600">{stats.displayGroups}</div>
+            <div className="text-gray-600">Display Groups</div>
           </div>
         </div>
-      </div>
-      
-      {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* Search and Filters */}
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+
+        {/* Search and Filter Controls */}
+        <div className="bg-white rounded-lg shadow p-4 mb-8">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-3 text-gray-400" size={20} />
               <input
                 type="text"
                 placeholder="Search artifacts..."
+                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-          </div>
-          
-          <div className="flex gap-2">
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">All Categories</option>
-              {categories.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-            
-            <select
-              value={filterGroup}
-              onChange={(e) => setFilterGroup(e.target.value)}
-              className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">All Display Groups</option>
-              {displayGroups.map(group => (
-                <option key={group} value={group}>{group}</option>
-              ))}
-            </select>
-            
+            {categories.length > 0 && (
+              <select
+                className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+              >
+                <option value="all">All Categories</option>
+                {categories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            )}
+            {displayGroups.length > 0 && (
+              <select
+                className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={filterGroup}
+                onChange={(e) => setFilterGroup(e.target.value)}
+              >
+                <option value="all">All Groups</option>
+                {displayGroups.map(group => (
+                  <option key={group} value={group}>{group}</option>
+                ))}
+              </select>
+            )}
             <button
               onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
               className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition"
