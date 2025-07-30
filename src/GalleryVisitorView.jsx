@@ -71,19 +71,6 @@ const VisitorArtifactCard = ({ artifact, onClick }) => {
         {artifact.description && (
           <p className="text-sm text-gray-600 mt-2 line-clamp-2">{artifact.description}</p>
         )}
-
-        {artifact.condition && (
-          <div className="mt-2">
-            <span className={`text-xs px-2 py-1 rounded ${
-              artifact.condition === 'Mint' || artifact.condition === 'Excellent' ? 'bg-green-100 text-green-800' :
-              artifact.condition === 'Good' || artifact.condition === 'Working' ? 'bg-blue-100 text-blue-800' :
-              artifact.condition === 'Fair' || artifact.condition === 'Restored' ? 'bg-yellow-100 text-yellow-800' :
-              'bg-red-100 text-red-800'
-              }`}>
-              {artifact.condition}
-            </span>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -127,33 +114,24 @@ const ArtifactModal = ({ artifact, onClose }) => {
                 {allImages.length > 1 && (
                   <>
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setCurrentImageIndex((currentImageIndex - 1 + allImages.length) % allImages.length);
-                      }}
+                      onClick={() => setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length)}
                       className="absolute left-4 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full p-2 hover:bg-opacity-70"
                     >
                       <ChevronLeft size={24} />
                     </button>
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setCurrentImageIndex((currentImageIndex + 1) % allImages.length);
-                      }}
+                      onClick={() => setCurrentImageIndex((prev) => (prev + 1) % allImages.length)}
                       className="absolute right-4 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full p-2 hover:bg-opacity-70"
                     >
                       <ChevronRight size={24} />
                     </button>
                     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
                       {allImages.map((_, idx) => (
-                        <button
+                        <div
                           key={idx}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setCurrentImageIndex(idx);
-                          }}
-                          className={`w-2 h-2 rounded-full transition ${
-                            idx === currentImageIndex ? 'bg-white' : 'bg-white bg-opacity-50'
+                          onClick={() => setCurrentImageIndex(idx)}
+                          className={`w-2 h-2 rounded-full cursor-pointer transition-all ${
+                            idx === currentImageIndex ? 'bg-white w-8' : 'bg-white bg-opacity-50'
                           }`}
                         />
                       ))}
@@ -166,65 +144,70 @@ const ArtifactModal = ({ artifact, onClose }) => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <h3 className="text-lg font-semibold mb-3">Basic Information</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Basic Information</h3>
               <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Category:</span>
-                  <span className="font-medium">{artifact.category}</span>
+                <div>
+                  <span className="text-sm text-gray-500">Category</span>
+                  <p className="font-medium">{artifact.category}</p>
                 </div>
-                {artifact.date && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Year/Date:</span>
-                    <span className="font-medium">{artifact.date}</span>
-                  </div>
-                )}
                 {artifact.manufacturer && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Manufacturer:</span>
-                    <span className="font-medium">{artifact.manufacturer}</span>
+                  <div>
+                    <span className="text-sm text-gray-500">Manufacturer</span>
+                    <p className="font-medium">{artifact.manufacturer}</p>
                   </div>
                 )}
                 {artifact.model && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Model:</span>
-                    <span className="font-medium">{artifact.model}</span>
+                  <div>
+                    <span className="text-sm text-gray-500">Model</span>
+                    <p className="font-medium">{artifact.model}</p>
+                  </div>
+                )}
+                {artifact.year && (
+                  <div>
+                    <span className="text-sm text-gray-500">Year</span>
+                    <p className="font-medium">{artifact.year}</p>
                   </div>
                 )}
                 {artifact.os && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Operating System:</span>
-                    <span className="font-medium">{artifact.os}</span>
+                  <div>
+                    <span className="text-sm text-gray-500">Operating System</span>
+                    <p className="font-medium">{artifact.os}</p>
                   </div>
                 )}
               </div>
             </div>
             
             <div>
-              <h3 className="text-lg font-semibold mb-3">Display Information</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Display Information</h3>
               <div className="space-y-2">
-                {artifact.condition && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Condition:</span>
-                    <span className={`px-2 py-1 rounded text-xs ${
-                      artifact.condition === 'Mint' || artifact.condition === 'Excellent' ? 'bg-green-100 text-green-800' :
-                      artifact.condition === 'Good' || artifact.condition === 'Working' ? 'bg-blue-100 text-blue-800' :
-                      artifact.condition === 'Fair' || artifact.condition === 'Restored' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {artifact.condition}
-                    </span>
-                  </div>
-                )}
                 {artifact.displayGroup && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Display Group:</span>
-                    <span className="font-medium">{artifact.displayGroup}</span>
+                  <div>
+                    <span className="text-sm text-gray-500">Display Group</span>
+                    <p className="font-medium">{artifact.displayGroup}</p>
                   </div>
                 )}
                 {artifact.location && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Location:</span>
-                    <span className="font-medium">{artifact.location}</span>
+                  <div>
+                    <span className="text-sm text-gray-500">Location</span>
+                    <p className="font-medium">{artifact.location}</p>
+                  </div>
+                )}
+                {artifact.condition && (
+                  <div>
+                    <span className="text-sm text-gray-500">Condition</span>
+                    <p className="font-medium">{artifact.condition}</p>
+                  </div>
+                )}
+                {artifact.acquisitionDate && (
+                  <div>
+                    <span className="text-sm text-gray-500">Acquisition Date</span>
+                    <p className="font-medium">{artifact.acquisitionDate}</p>
+                  </div>
+                )}
+                {artifact.donor && (
+                  <div>
+                    <span className="text-sm text-gray-500">Donor</span>
+                    <p className="font-medium">{artifact.donor}</p>
                   </div>
                 )}
               </div>
@@ -233,15 +216,8 @@ const ArtifactModal = ({ artifact, onClose }) => {
           
           {artifact.description && (
             <div className="mt-6">
-              <h3 className="text-lg font-semibold mb-3">Description</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Description</h3>
               <p className="text-gray-700 whitespace-pre-wrap">{artifact.description}</p>
-            </div>
-          )}
-          
-          {artifact.notes && (
-            <div className="mt-6">
-              <h3 className="text-lg font-semibold mb-3">Additional Notes</h3>
-              <p className="text-gray-700 whitespace-pre-wrap">{artifact.notes}</p>
             </div>
           )}
         </div>
@@ -250,83 +226,45 @@ const ArtifactModal = ({ artifact, onClose }) => {
   );
 };
 
-const GalleryVisitorView = ({ artifacts: providedArtifacts }) => {
-  const [artifacts, setArtifacts] = useState([]);
+// Main Gallery Visitor View Component
+const GalleryVisitorView = ({ artifacts }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterGroup, setFilterGroup] = useState('all');
   const [viewMode, setViewMode] = useState('grid');
   const [selectedArtifact, setSelectedArtifact] = useState(null);
-
-  // Use provided artifacts or fall back to sample data
-  useEffect(() => {
-    if (providedArtifacts && providedArtifacts.length > 0) {
-      setArtifacts(providedArtifacts);
-    } else {
-      // Sample data for demonstration
-      const sampleData = [
-        {
-          id: 1,
-          name: 'Apple Macintosh 128K',
-          category: 'Personal Computer',
-          date: '1984',
-          os: 'System 1.0',
-          manufacturer: 'Apple',
-          model: 'M0001',
-          description: 'The first Macintosh personal computer, featuring a revolutionary graphical user interface.',
-          condition: 'Working',
-          displayGroup: 'Early PCs',
-          location: 'Display Case A',
-          notes: 'Original mouse and keyboard included. This machine changed personal computing forever.',
-          imageUrl: '',
-          images: []
-        },
-        {
-          id: 2,
-          name: 'Commodore 64',
-          category: 'Personal Computer',
-          date: '1982',
-          os: 'Commodore BASIC 2.0',
-          manufacturer: 'Commodore',
-          model: 'C64',
-          description: 'The best-selling home computer model of all time, with an estimated 17 million units sold.',
-          condition: 'Restored',
-          displayGroup: 'Home Computers',
-          location: 'Display Case B',
-          notes: 'Power supply has been recapped. Includes original packaging.',
-          imageUrl: '',
-          images: []
-        }
-      ];
-      setArtifacts(sampleData);
-    }
-  }, [providedArtifacts]);
-
-  const categories = [...new Set(artifacts.map(a => a.category))];
-  const displayGroups = [...new Set(artifacts.map(a => a.displayGroup).filter(Boolean))];
-
+  
+  // Get unique categories and display groups
+  const categories = [...new Set(artifacts.map(a => a.category).filter(Boolean))].sort();
+  const displayGroups = [...new Set(artifacts.map(a => a.displayGroup).filter(Boolean))].sort();
+  
+  // Filter artifacts
   const filteredArtifacts = artifacts.filter(artifact => {
-    const matchesSearch = artifact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         artifact.manufacturer?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         artifact.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = searchTerm === '' || 
+      artifact.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      artifact.manufacturer?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      artifact.model?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      artifact.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    
     const matchesCategory = filterCategory === 'all' || artifact.category === filterCategory;
     const matchesGroup = filterGroup === 'all' || artifact.displayGroup === filterGroup;
+    
     return matchesSearch && matchesCategory && matchesGroup;
   });
-
+  
+  // Calculate stats
   const stats = {
     total: artifacts.length,
     categories: categories.length,
     displayGroups: displayGroups.length
   };
-
+  
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <h1 className="text-3xl font-bold text-gray-800">Computing Artifacts Gallery</h1>
-          <p className="text-gray-600 mt-2">Explore our collection of computing history</p>
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+        <div className="max-w-7xl mx-auto px-4 py-12">
+          <h1 className="text-4xl font-bold mb-4">Computing Artifacts Gallery</h1>
+          <p className="text-xl opacity-90">Explore our collection of computing history</p>
         </div>
       </div>
 

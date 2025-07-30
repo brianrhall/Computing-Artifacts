@@ -180,19 +180,22 @@ const ComputingGalleryManager = () => {
     }
   };
 
-  // Add auth state listener in useEffect
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        console.log('Auth state changed - user signed in:', user.email);
-        
+// Replace the existing useEffect auth listener in ComputingGalleryManager.jsx with this improved version:
+useEffect(() => {
+  const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      console.log('Auth state changed - user signed in:', user.email);
+      
+      try {
         // Check if user document exists
         const userDocRef = doc(db, 'users', user.uid);
         const userDoc = await getDoc(userDocRef);
         
+        let userData = { role: 'visitor' }; // Default to visitor
+        
         if (!userDoc.exists()) {
           // Create user document if signing in for first time
-          console.log('Creating user document for existing auth user');
+          console.log('Creating user document for new user:', user.email);
           await setDoc(userDocRef, {
             email: user.email,
             displayName: user.displayName || user.email,
@@ -200,27 +203,49 @@ const ComputingGalleryManager = () => {
             role: 'visitor',
             createdAt: new Date()
           });
+          userData = { role: 'visitor' };
+        } else {
+          userData = userDoc.data();
+          console.log('Existing user found with role:', userData.role);
         }
         
-        const userData = userDoc.exists() ? userDoc.data() : { role: 'visitor' };
+        // Ensure we have a valid role
+        const userRole = userData?.role || 'visitor';
+        const adminStatus = userRole === 'admin';
+        
+        console.log('Setting user role:', userRole);
+        console.log('Setting isAdmin:', adminStatus);
         
         setUser({
           uid: user.uid,
           email: user.email,
-          displayName: user.displayName || user.email,
-          photoURL: user.photoURL || null,
-          role: userData?.role || 'visitor'
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+          role: userRole
         });
         
-        setIsAdmin(userData?.role === 'admin');
-      } else {
-        setUser(null);
+        setIsAdmin(adminStatus);
+      } catch (error) {
+        console.error('Error checking/creating user document:', error);
+        // On error, default to visitor role for safety
+        setUser({
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+          role: 'visitor'
+        });
         setIsAdmin(false);
       }
-    });
-    
-    return () => unsubscribe();
-  }, []);
+    } else {
+      console.log('No user signed in, clearing user state');
+      setUser(null);
+      setIsAdmin(false);
+    }
+  });
+  
+  return () => unsubscribe();
+}, []);
 
   // Load artifacts from Firestore
   useEffect(() => {
@@ -512,8 +537,8 @@ const ComputingGalleryManager = () => {
   const getPriorityColor = (priority) => {
     switch(priority) {
       case 'High': return 'text-red-600 bg-red-50';
-      case 'Medium': return 'text-yellow-600 bg-yellow-50';
-      case 'Low': return 'text-green-600 bg-green-50';
+      case 'Medium': return 'text-orange-600 bg-orange-50';
+      case 'Low': return 'text-yellow-600 bg-yellow-50';
       case 'None': return 'text-gray-600 bg-gray-50';
       default: return 'text-gray-600 bg-gray-50';
     }
