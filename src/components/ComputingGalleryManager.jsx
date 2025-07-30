@@ -550,7 +550,7 @@ const ComputingGalleryManager = () => {
                       </div>
                     )}
                     <span>{user.displayName || user.email}</span>
-                    {isAdmin && (
+                    {(isAdmin === true && user !== null) && (
                       <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full flex items-center gap-1">
                         <Shield className="w-3 h-3" />
                         Admin
@@ -605,7 +605,7 @@ const ComputingGalleryManager = () => {
                 Exhibits
               </div>
             </button>
-            {isAdmin && (
+            {(isAdmin === true && user !== null) && (
               <button
                 onClick={() => setActiveTab('displayGroups')}
                 className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
@@ -673,7 +673,7 @@ const ComputingGalleryManager = () => {
                     {viewMode === 'grid' ? 'List View' : 'Grid View'}
                   </button>
                   
-                  {isAdmin && (
+                  {(isAdmin === true && user !== null) && (
                     <button
                       onClick={() => setShowForm(true)}
                       className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
@@ -764,7 +764,7 @@ const ComputingGalleryManager = () => {
                         </div>
                       )}
                       
-                      {isAdmin && (
+                      {(isAdmin === true && user !== null) && (
                         <div className="flex gap-2 mt-4 pt-4 border-t">
                           <button
                             onClick={(e) => {
@@ -800,7 +800,7 @@ const ComputingGalleryManager = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Manufacturer</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      {isAdmin && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>}
+                      {(isAdmin === true && user !== null) && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>}
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -835,7 +835,7 @@ const ComputingGalleryManager = () => {
                             <span className="ml-2 text-sm text-gray-500">{artifact.taskStatus || 'N/A'}</span>
                           </div>
                         </td>
-                        {isAdmin && (
+                        {(isAdmin === true && user !== null) && (
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <button
                               onClick={(e) => {
