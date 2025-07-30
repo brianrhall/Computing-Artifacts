@@ -125,9 +125,17 @@ const ComputingGalleryManager = () => {
       setShowLoginForm(false);
       setLoginData({ email: '', password: '' });
     } catch (error) {
-      console.error('Login error:', error);
-      setAuthError(error.message);
-    }
+        console.error('Login error:', error);
+    
+        // Map all authentication errors to a generic message
+        const genericErrorMessage = 'Invalid Email or Password';
+    
+        // You can still log the specific error for debugging
+        console.error('Specific error code:', error.code);
+    
+        setAuthError(genericErrorMessage);
+        return { success: false, error: genericErrorMessage };
+      }
   };
 
   // Real Google login
@@ -758,9 +766,10 @@ const ComputingGalleryManager = () => {
                         </p>
                       )}
                       
-                      {artifact.taskPriority && artifact.taskStatus !== 'Complete' && (
+                      {/* Priority admin control*/}
+                      {isAdmin && artifact.taskPriority && artifact.taskStatus !== 'Complete' && (
                         <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${getPriorityColor(artifact.taskPriority)}`}>
-                          Priority: {artifact.taskPriority}
+                        Priority: {artifact.taskPriority}
                         </div>
                       )}
                       

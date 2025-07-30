@@ -9,6 +9,7 @@ import {
   query, orderBy, where 
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { useNavigate } from 'react-router-dom';
 
 const ExhibitManager = ({ user, isAdmin, artifacts }) => {
   const [exhibits, setExhibits] = useState([]);
@@ -20,6 +21,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
   const [uploading, setUploading] = useState(false);
   const [viewMode, setViewMode] = useState('grid');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
     name: '',
@@ -282,10 +284,10 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                 
                 <div className="flex gap-2">
                   <button
-                    onClick={() => window.open(`/exhibit/${exhibit.id}`, '_blank')}
+                    onClick={() => navigate(`/exhibit/${exhibit.id}`)}
                     className="flex-1 px-3 py-1 bg-gray-50 text-gray-600 rounded hover:bg-gray-100 transition-colors flex items-center justify-center gap-1"
                   >
-                    <Eye className="w-4 h-4" />
+                  <Eye className="w-4 h-4" />
                     View
                   </button>
                   {isAdmin && (
@@ -359,13 +361,13 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
-                      <button
-                        onClick={() => window.open(`/exhibit/${exhibit.id}`, '_blank')}
-                        className="text-gray-600 hover:text-gray-800"
-                        title="View"
-                      >
+                        <button
+                          onClick={() => navigate(`/exhibit/${exhibit.id}`)}
+                          className="flex-1 px-3 py-1 bg-gray-50 text-gray-600 rounded hover:bg-gray-100 transition-colors flex items-center justify-center gap-1"
+                        >
                         <Eye className="w-4 h-4" />
-                      </button>
+                          View
+                        </button>
                       {isAdmin && (
                         <>
                           <button
