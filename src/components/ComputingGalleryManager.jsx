@@ -1,70 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Edit2, Trash2, Plus, Search, Filter, Save, X, CheckCircle, Clock, DollarSign, Grid, List, LogIn, LogOut, User, Shield, Package, Eye, Copy, CheckCircle2, Layers } from 'lucide-react';
-import ExhibitManager from './ExhibitManager';
-import ArtifactDetailModal from './ArtifactDetailModal';
-import DisplayGroupsManager from './DisplayGroupsManager';
-import ImageManagement from './ImageManagement';
-
-// Firebase imports
-import { auth, googleProvider, db, storage } from '../firebase';
-import { 
-  signInWithEmailAndPassword, 
-  signInWithPopup, 
-  signOut, 
-  onAuthStateChanged,
-  createUserWithEmailAndPassword,
-  updateProfile
-} from 'firebase/auth';
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  setDoc, 
-  getDocs, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc,
-  query,
-  orderBy,
-  where 
-} from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { signInWithEmailAndPassword, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+import { db, storage, auth, googleProvider } from '../firebase';
+import { Search, Grid, List, Plus, Calendar, Tag, Monitor, MapPin, Upload, Package, Clock, CheckCircle, Edit2, Trash2, Copy, DollarSign, Camera, Users, X, CheckCircle2, LogOut } from 'lucide-react';
+import GalleryVisitorView from '../GalleryVisitorView';
+import ArtifactDetailModal from './ArtifactDetailModal';
+import ArtifactForm from './ArtifactForm';
+import ExhibitManager from './ExhibitManager';
 
 const ComputingGalleryManager = () => {
-  // Authentication states
+  const [artifacts, setArtifacts] = useState([]);
+  const [filteredArtifacts, setFilteredArtifacts] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [filterGroup, setFilterGroup] = useState('all');
+  const [viewMode, setViewMode] = useState('grid');
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showLoginForm, setShowLoginForm] = useState(false);
   const [loginData, setLoginData] = useState({ email: '', password: '' });
   const [authError, setAuthError] = useState('');
-  
-  // App states
-  const [activeTab, setActiveTab] = useState('artifacts'); // New state for tabs
-  const [artifacts, setArtifacts] = useState([]);
-  const [filteredArtifacts, setFilteredArtifacts] = useState([]);
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterCategory, setFilterCategory] = useState('all');
-  const [filterGroup, setFilterGroup] = useState('all');
-  const [viewMode, setViewMode] = useState('grid');
+  const [selectedArtifact, setSelectedArtifact] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [activeTab, setActiveTab] = useState('gallery');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successModalData, setSuccessModalData] = useState({ name: '', action: '' });
-  const [selectedArtifact, setSelectedArtifact] = useState(null);
-  const [displayGroupsFromDB, setDisplayGroupsFromDB] = useState([]);
   
-  const categories = [
-    'Mainframe', 'Minicomputer', 'Microcomputer', 'Personal Computer',
-    'Laptop', 'Server', 'Storage Device', 'Peripheral', 'Component',
-    'Mobile Device', 'Media Player', 'Software', 'Documentation', 'Marketing', 'Book', 'Clothing', 'Other'
-  ];
-  
-  // Dynamic display groups from database
-  const displayGroups = displayGroupsFromDB.length > 0 
-    ? displayGroupsFromDB 
-    : ['Early Computing Era', 'Personal Computer Revolution', 'Modern Era'];
-
   const [formData, setFormData] = useState({
     name: '',
     category: '',
@@ -77,35 +41,36 @@ const ComputingGalleryManager = () => {
     condition: '',
     displayGroup: '',
     location: '',
-    estimatedValue: '',
+    value: '',
     acquisitionDate: '',
     donor: '',
-    notes: '',
-    taskStatus: 'To Do',
-    taskPriority: 'Medium',
+    status: 'To Do',
+    priority: 'Medium',
     taskNotes: '',
     images: []
   });
 
-  // Real email/password login
-  const handleEmailLogin = async (e) => {
-    e.preventDefault();
+  // Real Firebase authentication
+  const handleLogin = async () => {
     setAuthError('');
     
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, loginData.email, loginData.password);
-      const user = userCredential.user;
+      const userCredential = await signInWithEmailAndPassword(
+        auth, 
+        loginData.email, 
+        loginData.password
+      );
       
-      // Check if user document exists
-      const userDocRef = doc(db, 'users', user.uid);
+      // Check/Create user document
+      const userDocRef = doc(db, 'users', userCredential.user.uid);
       const userDoc = await getDoc(userDocRef);
       
       if (!userDoc.exists()) {
         // Create user document if it doesn't exist
+        console.log('Creating new user document for:', userCredential.user.email);
         await setDoc(userDocRef, {
-          email: user.email,
-          displayName: user.displayName || user.email,
-          photoURL: user.photoURL || null,
+          email: userCredential.user.email,
+          displayName: userCredential.user.displayName || userCredential.user.email,
           role: 'visitor',
           createdAt: new Date()
         });
@@ -114,14 +79,14 @@ const ComputingGalleryManager = () => {
       const userData = userDoc.exists() ? userDoc.data() : { role: 'visitor' };
       
       setUser({
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName || user.email,
-        photoURL: user.photoURL,
-        role: userData.role || 'visitor'
+        uid: userCredential.user.uid,
+        email: userCredential.user.email,
+        displayName: userCredential.user.displayName,
+        photoURL: userCredential.user.photoURL,
+        role: userData?.role || 'visitor'
       });
       
-      setIsAdmin(userData.role === 'admin');
+      setIsAdmin(userData?.role === 'admin');
       setShowLoginForm(false);
       setLoginData({ email: '', password: '' });
     } catch (error) {
@@ -130,8 +95,10 @@ const ComputingGalleryManager = () => {
     }
   };
 
-  // Real Google login
+  // Real Google authentication
   const handleGoogleLogin = async () => {
+    setAuthError('');
+    
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
@@ -141,12 +108,13 @@ const ComputingGalleryManager = () => {
       const userDoc = await getDoc(userDocRef);
       
       if (!userDoc.exists()) {
-        // Create user document for new Google users
+        // First time user - create user document
+        console.log('Creating new user document for:', user.email);
         await setDoc(userDocRef, {
           email: user.email,
           displayName: user.displayName,
           photoURL: user.photoURL,
-          role: 'visitor',
+          role: 'visitor', // Default role
           createdAt: new Date()
         });
       }
@@ -158,10 +126,10 @@ const ComputingGalleryManager = () => {
         email: user.email,
         displayName: user.displayName,
         photoURL: user.photoURL,
-        role: userData.role || 'visitor'
+        role: userData?.role || 'visitor'
       });
       
-      setIsAdmin(userData.role === 'admin');
+      setIsAdmin(userData?.role === 'admin');
       setShowLoginForm(false);
     } catch (error) {
       console.error('Google login error:', error);
@@ -169,7 +137,6 @@ const ComputingGalleryManager = () => {
     }
   };
 
-  // Real logout
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -180,150 +147,79 @@ const ComputingGalleryManager = () => {
     }
   };
 
-// Replace the existing useEffect auth listener in ComputingGalleryManager.jsx with this improved version:
-useEffect(() => {
-  const unsubscribe = onAuthStateChanged(auth, async (user) => {
-    if (user) {
-      console.log('Auth state changed - user signed in:', user.email);
-      
-      try {
-        // Check if user document exists
-        const userDocRef = doc(db, 'users', user.uid);
+  // Listen for auth state changes
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // User is signed in
+        const userDocRef = doc(db, 'users', firebaseUser.uid);
         const userDoc = await getDoc(userDocRef);
         
-        let userData = { role: 'visitor' }; // Default to visitor
-        
-        if (!userDoc.exists()) {
-          // Create user document if signing in for first time
-          console.log('Creating user document for new user:', user.email);
-          await setDoc(userDocRef, {
-            email: user.email,
-            displayName: user.displayName || user.email,
-            photoURL: user.photoURL || null,
-            role: 'visitor',
-            createdAt: new Date()
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setUser({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName,
+            photoURL: firebaseUser.photoURL,
+            role: userData?.role || 'visitor'
           });
-          userData = { role: 'visitor' };
-        } else {
-          userData = userDoc.data();
-          console.log('Existing user found with role:', userData.role);
+          setIsAdmin(userData?.role === 'admin');
         }
-        
-        // Ensure we have a valid role
-        const userRole = userData?.role || 'visitor';
-        const adminStatus = userRole === 'admin';
-        
-        console.log('Setting user role:', userRole);
-        console.log('Setting isAdmin:', adminStatus);
-        
-        setUser({
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-          role: userRole
-        });
-        
-        setIsAdmin(adminStatus);
-      } catch (error) {
-        console.error('Error checking/creating user document:', error);
-        // On error, default to visitor role for safety
-        setUser({
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-          role: 'visitor'
-        });
+      } else {
+        // User is signed out
+        setUser(null);
         setIsAdmin(false);
       }
-    } else {
-      console.log('No user signed in, clearing user state');
-      setUser(null);
-      setIsAdmin(false);
-    }
-  });
-  
-  return () => unsubscribe();
-}, []);
+    });
+    
+    return () => unsubscribe();
+  }, []);
 
   // Load artifacts from Firestore
   useEffect(() => {
-    const loadArtifacts = async () => {
-      try {
-        const q = query(collection(db, 'artifacts'), orderBy('createdAt', 'desc'));
-        const querySnapshot = await getDocs(q);
-        const artifactsData = [];
-        
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          artifactsData.push({ 
-            id: doc.id, 
-            ...data,
-            images: data.images || [] // Ensure images is always an array
-          });
-        });
-        
-        setArtifacts(artifactsData);
-        setFilteredArtifacts(artifactsData);
-      } catch (error) {
-        console.error('Error loading artifacts:', error);
-        // Fallback to empty array if Firestore fails
-        setArtifacts([]);
-        setFilteredArtifacts([]);
-      }
-    };
-    
     loadArtifacts();
   }, []);
 
-  // Load display groups from Firestore
-  useEffect(() => {
-    const loadDisplayGroups = async () => {
-      try {
-        const q = query(collection(db, 'displayGroups'), orderBy('order', 'asc'));
-        const querySnapshot = await getDocs(q);
-        const groups = [];
-        
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          groups.push(data.name); // Just push the name for the dropdown
-        });
-        
-        setDisplayGroupsFromDB(groups);
-      } catch (error) {
-        console.error('Error loading display groups:', error);
-      }
-    };
-    
-    loadDisplayGroups();
-  }, [activeTab]); // Reload when switching tabs
+  const loadArtifacts = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'artifacts'));
+      const loadedArtifacts = [];
+      querySnapshot.forEach((doc) => {
+        loadedArtifacts.push({ id: doc.id, ...doc.data() });
+      });
+      setArtifacts(loadedArtifacts);
+    } catch (error) {
+      console.error('Error loading artifacts:', error);
+    }
+  };
 
   // Filter artifacts based on search and filters
   useEffect(() => {
-    let filtered = artifacts;
-    
-    if (searchTerm) {
-      filtered = filtered.filter(a => 
-        a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        a.manufacturer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        a.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        a.description.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-    
-    if (filterCategory !== 'all') {
-      filtered = filtered.filter(a => a.category === filterCategory);
-    }
-    
-    if (filterGroup !== 'all') {
-      filtered = filtered.filter(a => a.displayGroup === filterGroup);
-    }
-    
+    const filtered = artifacts.filter(artifact => {
+      const matchesSearch = artifact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           artifact.manufacturer?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           artifact.description?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = filterCategory === 'all' || artifact.category === filterCategory;
+      const matchesGroup = filterGroup === 'all' || artifact.displayGroup === filterGroup;
+      return matchesSearch && matchesCategory && matchesGroup;
+    });
     setFilteredArtifacts(filtered);
-  }, [searchTerm, filterCategory, filterGroup, artifacts]);
+  }, [artifacts, searchTerm, filterCategory, filterGroup]);
 
-  // Updated image upload handler using Firebase Storage
+  const categories = [...new Set(artifacts.map(a => a.category).filter(Boolean))];
+  const displayGroups = [...new Set(artifacts.map(a => a.displayGroup).filter(Boolean))];
+
+  const stats = {
+    total: artifacts.length,
+    categories: categories.length,
+    working: artifacts.filter(a => a.condition === 'Working' || a.condition === 'Excellent' || a.condition === 'Good').length,
+    totalValue: artifacts.reduce((sum, a) => sum + (parseFloat(a.value) || 0), 0),
+    toDoItems: artifacts.filter(a => a.status === 'To Do').length,
+    inProgressItems: artifacts.filter(a => a.status === 'In Progress').length,
+    completeItems: artifacts.filter(a => a.status === 'Complete').length
+  };
+
   const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
@@ -332,10 +228,10 @@ useEffect(() => {
     
     try {
       const uploadPromises = files.map(async (file) => {
-        // Create a unique filename
+        // Create unique filename
         const timestamp = Date.now();
-        const randomString = Math.random().toString(36).substring(7);
-        const sanitizedName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
+        const randomString = Math.random().toString(36).substring(2, 15);
+        const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
         const filename = `artifacts/${timestamp}_${randomString}_${sanitizedName}`;
         
         // Create storage reference
@@ -369,11 +265,11 @@ useEffect(() => {
     }
   };
 
-  // Add this new function to handle image order updates
-  const handleImagesUpdate = (newImages) => {
+  // Function to remove image from form (but not from Firebase Storage yet)
+  const removeImage = (index) => {
     setFormData(prevData => ({
       ...prevData,
-      images: newImages
+      images: prevData.images.filter((_, i) => i !== index)
     }));
   };
 
@@ -390,19 +286,18 @@ useEffect(() => {
         category: formData.category,
         manufacturer: formData.manufacturer || '',
         model: formData.model || '',
-        serialNumber: formData.serialNumber || '',  // Include serial number in save
+        serialNumber: formData.serialNumber || '',
         year: formData.year || '',
         os: formData.os || '',
         description: formData.description || '',
         condition: formData.condition || '',
         displayGroup: formData.displayGroup,
         location: formData.location || '',
-        estimatedValue: formData.estimatedValue || '',
+        value: formData.value || '',
         acquisitionDate: formData.acquisitionDate || '',
         donor: formData.donor || '',
-        notes: formData.notes || '',
-        taskStatus: formData.taskStatus === 'None' ? '' : (formData.taskStatus || 'In Progress'),
-        taskPriority: formData.taskStatus === 'None' ? '' : (formData.taskPriority || 'Medium'),
+        status: formData.status || 'To Do',
+        priority: formData.status === 'Complete' ? 'None' : (formData.priority || 'Medium'),
         taskNotes: formData.taskNotes || '',
         images: formData.images || [],
         updatedAt: new Date()
@@ -421,15 +316,13 @@ useEffect(() => {
       } else {
         // Add new artifact
         artifactData.createdAt = new Date();
-        artifactData.createdBy = user?.uid || 'anonymous';
-        
         const docRef = await addDoc(collection(db, 'artifacts'), artifactData);
         
-        const newArtifact = { ...artifactData, id: docRef.id };
-        setArtifacts(prevArtifacts => [...prevArtifacts, newArtifact]);
+        // Update local state
+        setArtifacts(prevArtifacts => [...prevArtifacts, { ...artifactData, id: docRef.id }]);
       }
       
-      // Show success modal instead of browser confirm
+      // Show success modal
       const action = editingId ? 'updated' : 'added';
       setSuccessModalData({ name: formData.name, action });
       setShowSuccessModal(true);
@@ -445,25 +338,10 @@ useEffect(() => {
 
   const resetForm = () => {
     setFormData({
-      name: '',
-      category: '',
-      manufacturer: '',
-      model: '',
-      serialNumber: '',
-      year: '',
-      os: '',
-      description: '',
-      condition: '',
-      displayGroup: '',
-      location: '',
-      estimatedValue: '',
-      acquisitionDate: '',
-      donor: '',
-      notes: '',
-      taskStatus: 'To Do',
-      taskPriority: 'Medium',
-      taskNotes: '',
-      images: []
+      name: '', category: '', manufacturer: '', model: '', serialNumber: '', year: '', os: '',
+      description: '', condition: '', displayGroup: '', location: '', value: '',
+      acquisitionDate: '', donor: '', status: 'To Do', priority: 'Medium',
+      taskNotes: '', images: []
     });
     setShowForm(false);
     setEditingId(null);
@@ -471,6 +349,7 @@ useEffect(() => {
   };
 
   const handleEdit = (artifact) => {
+    // Ensure all fields have values, especially images
     setFormData({
       name: artifact.name || '',
       category: artifact.category || '',
@@ -483,16 +362,41 @@ useEffect(() => {
       condition: artifact.condition || '',
       displayGroup: artifact.displayGroup || '',
       location: artifact.location || '',
-      estimatedValue: artifact.estimatedValue || artifact.value || '',
+      value: artifact.value || '',
       acquisitionDate: artifact.acquisitionDate || '',
-      donor: artifact.donor || artifact.source || '',
-      notes: artifact.notes || '',
-      taskStatus: artifact.taskStatus || artifact.status || 'To Do',
-      taskPriority: artifact.taskPriority || artifact.priority || 'Medium',
-      taskNotes: artifact.taskNotes || artifact.todos || '',
+      donor: artifact.donor || '',
+      status: artifact.status || 'To Do',
+      priority: artifact.priority || 'Medium',
+      taskNotes: artifact.taskNotes || '',
       images: artifact.images || []
     });
     setEditingId(artifact.id);
+    setShowForm(true);
+  };
+
+  const handleDuplicate = (artifact) => {
+    // Copy all fields except ID and add " (Copy)" to the name
+    setFormData({
+      name: `${artifact.name} (Copy)`,
+      category: artifact.category || '',
+      manufacturer: artifact.manufacturer || '',
+      model: artifact.model || '',
+      serialNumber: artifact.serialNumber || '',
+      year: artifact.year || '',
+      os: artifact.os || '',
+      description: artifact.description || '',
+      condition: artifact.condition || '',
+      displayGroup: artifact.displayGroup || '',
+      location: artifact.location || '',
+      value: artifact.value || '',
+      acquisitionDate: artifact.acquisitionDate || '',
+      donor: artifact.donor || '',
+      status: artifact.status || 'To Do',
+      priority: artifact.priority || 'Medium',
+      taskNotes: artifact.taskNotes || '',
+      images: artifact.images || []
+    });
+    setEditingId(null); // This is a new artifact, not an edit
     setShowForm(true);
   };
 
@@ -537,8 +441,8 @@ useEffect(() => {
   const getPriorityColor = (priority) => {
     switch(priority) {
       case 'High': return 'text-red-600 bg-red-50';
-      case 'Medium': return 'text-orange-600 bg-orange-50';
-      case 'Low': return 'text-yellow-600 bg-yellow-50';
+      case 'Medium': return 'text-yellow-600 bg-yellow-50';
+      case 'Low': return 'text-green-600 bg-green-50';
       case 'None': return 'text-gray-600 bg-gray-50';
       default: return 'text-gray-600 bg-gray-50';
     }
@@ -571,20 +475,17 @@ useEffect(() => {
                       <img src={user.photoURL} alt={user.displayName} className="w-8 h-8 rounded-full" />
                     ) : (
                       <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
-                        <User className="w-4 h-4 text-gray-600" />
+                        <span className="text-xs font-medium">{user.email?.[0]?.toUpperCase()}</span>
                       </div>
                     )}
                     <span>{user.displayName || user.email}</span>
-                    {isAdmin && (
-                      <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full flex items-center gap-1">
-                        <Shield className="w-3 h-3" />
-                        Admin
-                      </span>
-                    )}
+                    <span className="px-2 py-1 bg-gray-100 rounded text-xs">
+                      {isAdmin ? 'Admin' : 'Visitor'}
+                    </span>
                   </div>
                   <button
                     onClick={handleLogout}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors flex items-center gap-2"
+                    className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 flex items-center gap-2"
                   >
                     <LogOut className="w-4 h-4" />
                     Sign Out
@@ -593,101 +494,220 @@ useEffect(() => {
               ) : (
                 <button
                   onClick={() => setShowLoginForm(true)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
-                  <LogIn className="w-4 h-4" />
                   Sign In
                 </button>
               )}
             </div>
           </div>
-
-          {/* Tab Navigation */}
-          <nav className="flex space-x-8 border-b border-gray-200">
-            <button
-              onClick={() => setActiveTab('artifacts')}
-              className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'artifacts'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <Package className="w-4 h-4" />
-                Artifacts
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab('exhibits')}
-              className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'exhibits'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <Eye className="w-4 h-4" />
-                Exhibits
-              </div>
-            </button>
-            {isAdmin && (
+          
+          {/* Tabs - Only show if admin */}
+          {isAdmin && (
+            <div className="flex gap-4 border-b">
               <button
-                onClick={() => setActiveTab('displayGroups')}
-                className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'displayGroups'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                onClick={() => setActiveTab('gallery')}
+                className={`pb-2 px-1 font-medium transition-colors border-b-2 ${
+                  activeTab === 'gallery' 
+                    ? 'text-blue-600 border-blue-600' 
+                    : 'text-gray-600 border-transparent hover:text-gray-900'
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <Layers className="w-4 h-4" />
-                  Display Groups
-                </div>
+                Gallery
               </button>
-            )}
-          </nav>
+              <button
+                onClick={() => setActiveTab('exhibits')}
+                className={`pb-2 px-1 font-medium transition-colors border-b-2 ${
+                  activeTab === 'exhibits' 
+                    ? 'text-blue-600 border-blue-600' 
+                    : 'text-gray-600 border-transparent hover:text-gray-900'
+                }`}
+              >
+                Exhibits
+              </button>
+            </div>
+          )}
         </header>
 
-        {/* Content based on active tab */}
-        {activeTab === 'artifacts' ? (
+        {/* Login Form Modal */}
+        {showLoginForm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg max-w-md w-full p-6">
+              <h2 className="text-2xl font-bold mb-6">Sign In</h2>
+              
+              {authError && (
+                <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+                  {authError}
+                </div>
+              )}
+              
+              <div className="space-y-4 mb-6">
+                <input
+                  type="email"
+                  placeholder="Email"
+                  value={loginData.email}
+                  onChange={(e) => setLoginData({...loginData, email: e.target.value})}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <input
+                  type="password"
+                  placeholder="Password"
+                  value={loginData.password}
+                  onChange={(e) => setLoginData({...loginData, password: e.target.value})}
+                  onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              
+              <div className="space-y-3">
+                <button
+                  onClick={handleLogin}
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Sign In with Email
+                </button>
+                
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-300"></div>
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-2 bg-white text-gray-500">Or</span>
+                  </div>
+                </div>
+                
+                <button
+                  onClick={handleGoogleLogin}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+                >
+                  <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
+                  Sign In with Google
+                </button>
+                
+                <button
+                  onClick={() => {
+                    setShowLoginForm(false);
+                    setAuthError('');
+                    setLoginData({ email: '', password: '' });
+                  }}
+                  className="w-full px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Gallery Content */}
+        {(!isAdmin || activeTab === 'gallery') ? (
           <>
-            {/* Controls */}
-            <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-              <div className="flex flex-wrap gap-4 items-center justify-between">
-                <div className="flex flex-wrap gap-4 items-center flex-1">
-                  <div className="relative flex-1 min-w-64">
-                    <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+            {/* If not logged in, show visitor view */}
+            {!user && (
+              <GalleryVisitorView artifacts={artifacts} />
+            )}
+            
+            {/* If logged in as visitor, show visitor view */}
+            {user && !isAdmin && (
+              <GalleryVisitorView artifacts={artifacts} />
+            )}
+            
+            {/* If logged in as admin, show full management interface */}
+            {user && isAdmin && (
+              <>
+                {/* Stats Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                  <div className="bg-white rounded-lg shadow-sm p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <Monitor className="w-8 h-8 text-blue-600" />
+                      <span className="text-2xl font-bold">{stats.total}</span>
+                    </div>
+                    <p className="text-sm text-gray-600">Total Artifacts</p>
+                  </div>
+                  
+                  <div className="bg-white rounded-lg shadow-sm p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <Tag className="w-8 h-8 text-green-600" />
+                      <span className="text-2xl font-bold">{stats.categories}</span>
+                    </div>
+                    <p className="text-sm text-gray-600">Categories</p>
+                  </div>
+                  
+                  <div className="bg-white rounded-lg shadow-sm p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <CheckCircle className="w-8 h-8 text-purple-600" />
+                      <span className="text-2xl font-bold">{stats.working}</span>
+                    </div>
+                    <p className="text-sm text-gray-600">Working Condition</p>
+                  </div>
+                  
+                  <div className="bg-white rounded-lg shadow-sm p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <DollarSign className="w-8 h-8 text-yellow-600" />
+                      <span className="text-2xl font-bold">${stats.totalValue.toFixed(0)}</span>
+                    </div>
+                    <p className="text-sm text-gray-600">Total Value</p>
+                  </div>
+                </div>
+
+                {/* Task Progress */}
+                <div className="bg-white rounded-lg shadow-sm p-4 mb-8">
+                  <h3 className="text-lg font-semibold mb-3">Task Progress</h3>
+                  <div className="flex gap-4">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-5 h-5 text-gray-400" />
+                      <span className="text-sm text-gray-600">To Do: <span className="font-semibold">{stats.toDoItems}</span></span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-5 h-5 text-yellow-500" />
+                      <span className="text-sm text-gray-600">In Progress: <span className="font-semibold">{stats.inProgressItems}</span></span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-5 h-5 text-green-500" />
+                      <span className="text-sm text-gray-600">Complete: <span className="font-semibold">{stats.completeItems}</span></span>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Search and Filter Bar - Show for all users */}
+            <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+              <div className="flex flex-col md:flex-row gap-4 mb-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                     <input
                       type="text"
                       placeholder="Search artifacts..."
-                      className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
-                  
-                  <select
-                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={filterCategory}
-                    onChange={(e) => setFilterCategory(e.target.value)}
-                  >
-                    <option value="all">All Categories</option>
-                    {categories.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                  
-                  <select
-                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={filterGroup}
-                    onChange={(e) => setFilterGroup(e.target.value)}
-                  >
-                    <option value="all">All Display Groups</option>
-                    {displayGroups.map(group => (
-                      <option key={group} value={group}>{group}</option>
-                    ))}
-                  </select>
                 </div>
+                
+                <select
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Categories</option>
+                  {categories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+                
+                <select
+                  value={filterGroup}
+                  onChange={(e) => setFilterGroup(e.target.value)}
+                  className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Display Groups</option>
+                  {displayGroups.map(group => (
+                    <option key={group} value={group}>{group}</option>
+                  ))}
+                </select>
                 
                 <div className="flex gap-2">
                   <button
@@ -695,7 +715,7 @@ useEffect(() => {
                     className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2"
                   >
                     {viewMode === 'grid' ? <List className="w-4 h-4" /> : <Grid className="w-4 h-4" />}
-                    {viewMode === 'grid' ? 'List View' : 'Grid View'}
+                    {viewMode === 'grid' ? 'List' : 'Grid'}
                   </button>
                   
                   {isAdmin && (
@@ -703,111 +723,103 @@ useEffect(() => {
                       onClick={() => setShowForm(true)}
                       className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
                     >
-                      <Plus className="w-4 h-4" />
+                      <Plus className="w-5 h-5" />
                       Add Artifact
                     </button>
                   )}
                 </div>
               </div>
+              
+              <div className="mt-4 text-sm text-gray-600">
+                Showing {filteredArtifacts.length} of {artifacts.length} artifacts
+              </div>
             </div>
 
             {/* Artifacts Display */}
-            {filteredArtifacts.length === 0 ? (
-              <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-                <p className="text-gray-500">No artifacts found matching your criteria.</p>
-              </div>
-            ) : viewMode === 'grid' ? (
+            {viewMode === 'grid' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredArtifacts.map(artifact => (
                   <div 
                     key={artifact.id} 
-                    className="bg-white rounded-lg shadow-sm hover:shadow-lg transition-all cursor-pointer"
+                    className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer"
                     onClick={() => handleArtifactClick(artifact)}
                   >
-                    <div className="aspect-w-16 aspect-h-9 relative bg-gray-100 rounded-t-lg overflow-hidden">
-                      {artifact.images && artifact.images.length > 0 ? (
-                        <>
-                          <img 
-                            src={artifact.images[0]} 
-                            alt={artifact.name}
-                            className="object-cover w-full h-48"
-                          />
-                          {artifact.images.length > 1 && (
-                            <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
-                              <Camera className="w-3 h-3" />
-                              {artifact.images.length}
-                            </div>
-                          )}
-                        </>
+                    <div className="aspect-portrait bg-gray-100 relative overflow-hidden rounded-t-lg">
+                      {artifact.images && artifact.images[0] ? (
+                        <img src={artifact.images[0]} alt={artifact.name} className="w-full h-full object-cover" />
                       ) : (
-                        <div className="flex items-center justify-center h-48 text-gray-400">
-                          <Camera className="w-12 h-12" />
+                        <div className="flex items-center justify-center h-full">
+                          <Camera className="w-12 h-12 text-gray-300" />
+                        </div>
+                      )}
+                      {/* ONLY SHOW PRIORITY TO ADMINS */}
+                      {isAdmin && artifact.priority && artifact.priority !== 'None' && (
+                        <div className="absolute top-2 right-2 flex gap-2">
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${getPriorityColor(artifact.priority)}`}>
+                            {artifact.priority}
+                          </span>
                         </div>
                       )}
                     </div>
                     
                     <div className="p-4">
-                      <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-start justify-between mb-2">
                         <h3 className="text-lg font-semibold text-gray-900">{artifact.name}</h3>
-                        {artifact.taskStatus && getStatusIcon(artifact.taskStatus)}
+                        <div className="flex items-center gap-1">
+                          {getStatusIcon(artifact.status)}
+                        </div>
                       </div>
                       
-                      <p className="text-sm text-gray-600 mb-2">
-                        {artifact.manufacturer} {artifact.model && `- ${artifact.model}`}
-                      </p>
+                      <p className="text-sm text-gray-600 mb-1">{artifact.manufacturer} {artifact.model}</p>
+                      <p className="text-sm text-gray-500 mb-3">{artifact.year} • {artifact.category}</p>
                       
-                      <div className="flex flex-wrap gap-2 mb-3">
-                        <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
-                          {artifact.category}
-                        </span>
-                        {artifact.year && (
-                          <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
-                            {artifact.year}
-                          </span>
-                        )}
-                        {artifact.condition && (
-                          <span className={`text-xs px-2 py-1 rounded-full ${
-                            artifact.condition === 'Mint' || artifact.condition === 'Excellent' ? 'bg-green-100 text-green-800' :
-                            artifact.condition === 'Good' || artifact.condition === 'Working' ? 'bg-blue-100 text-blue-800' :
-                            artifact.condition === 'Fair' || artifact.condition === 'Restored' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-red-100 text-red-800'
-                            }`}>
-                            {artifact.condition}
-                          </span>
-                        )}
-                      </div>
-                      
-                      {artifact.description && (
-                        <p className="text-sm text-gray-600 line-clamp-2 mb-3">
-                          {artifact.description}
-                        </p>
+                      {artifact.os && (
+                        <p className="text-sm text-gray-600 mb-2">OS: {artifact.os}</p>
                       )}
                       
-                      {artifact.taskPriority && artifact.taskStatus !== 'Complete' && (
-                        <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${getPriorityColor(artifact.taskPriority)}`}>
-                          Priority: {artifact.taskPriority}
+                      <div className="flex items-center justify-between text-sm mb-3">
+                        <span className="text-gray-500">{artifact.displayGroup}</span>
+                        {/* ONLY SHOW VALUE TO ADMINS */}
+                        {isAdmin && artifact.value && (
+                          <span className="flex items-center gap-1 text-green-600">
+                            <DollarSign className="w-3 h-3" />
+                            {artifact.value}
+                          </span>
+                        )}
+                      </div>
+                      
+                      {artifact.location && (
+                        <div className="flex items-center gap-1 text-sm text-gray-500">
+                          <MapPin className="w-3 h-3" />
+                          {artifact.location}
                         </div>
                       )}
                       
                       {isAdmin && (
-                        <div className="flex gap-2 mt-4 pt-4 border-t">
+                        <div className="mt-4 flex gap-2" onClick={(e) => e.stopPropagation()}>
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEdit(artifact);
-                            }}
-                            className="flex-1 px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                            onClick={() => handleEdit(artifact)}
+                            className="flex-1 px-3 py-1.5 text-sm bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors flex items-center justify-center gap-1"
+                            title="Edit artifact"
                           >
-                            Edit
+                            <Edit2 className="w-3 h-3" />
+                            <span className="hidden sm:inline">Edit</span>
                           </button>
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(artifact.id);
-                            }}
-                            className="flex-1 px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                            onClick={() => handleDuplicate(artifact)}
+                            className="flex-1 px-3 py-1.5 text-sm bg-purple-50 text-purple-600 rounded hover:bg-purple-100 transition-colors flex items-center justify-center gap-1"
+                            title="Duplicate artifact"
                           >
-                            Delete
+                            <Copy className="w-3 h-3" />
+                            <span className="hidden sm:inline">Copy</span>
+                          </button>
+                          <button
+                            onClick={() => handleDelete(artifact.id)}
+                            className="flex-1 px-3 py-1.5 text-sm bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors flex items-center justify-center gap-1"
+                            title="Delete artifact"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            <span className="hidden sm:inline">Delete</span>
                           </button>
                         </div>
                       )}
@@ -817,69 +829,90 @@ useEffect(() => {
               </div>
             ) : (
               <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Manufacturer</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      {isAdmin && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>}
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Name</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Category</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Year</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Display Group</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Status</th>
+                      {/* ONLY SHOW PRIORITY COLUMN TO ADMINS */}
+                      {isAdmin && (
+                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Priority</th>
+                      )}
+                      {/* ONLY SHOW VALUE COLUMN TO ADMINS */}
+                      {isAdmin && (
+                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Value</th>
+                      )}
+                      {isAdmin && (
+                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Actions</th>
+                      )}
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="divide-y">
                     {filteredArtifacts.map(artifact => (
                       <tr 
                         key={artifact.id} 
                         className="hover:bg-gray-50 cursor-pointer"
                         onClick={() => handleArtifactClick(artifact)}
                       >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            {artifact.images && artifact.images.length > 0 ? (
-                              <img 
-                                src={artifact.images[0]} 
-                                alt={artifact.name}
-                                className="h-10 w-10 rounded-full object-cover mr-3"
-                              />
-                            ) : (
-                              <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center mr-3">
-                                <Camera className="w-5 h-5 text-gray-400" />
-                              </div>
-                            )}
-                            <div className="text-sm font-medium text-gray-900">{artifact.name}</div>
+                        <td className="px-4 py-3">
+                          <div>
+                            <div className="font-medium text-gray-900">{artifact.name}</div>
+                            <div className="text-sm text-gray-500">{artifact.manufacturer} {artifact.model}</div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{artifact.category}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{artifact.manufacturer}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{artifact.year}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            {artifact.taskStatus && getStatusIcon(artifact.taskStatus)}
-                            <span className="ml-2 text-sm text-gray-500">{artifact.taskStatus || 'N/A'}</span>
+                        <td className="px-4 py-3 text-sm text-gray-600">{artifact.category}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{artifact.year}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{artifact.displayGroup}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            {getStatusIcon(artifact.status)}
+                            <span className="text-sm text-gray-600">{artifact.status}</span>
                           </div>
                         </td>
+                        {/* ONLY SHOW PRIORITY CELL TO ADMINS */}
                         {isAdmin && (
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleEdit(artifact);
-                              }}
-                              className="text-blue-600 hover:text-blue-900 mr-3"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDelete(artifact.id);
-                              }}
-                              className="text-red-600 hover:text-red-900"
-                            >
-                              Delete
-                            </button>
+                          <td className="px-4 py-3">
+                            {artifact.priority && artifact.priority !== 'None' && (
+                              <span className={`px-2 py-1 rounded text-xs font-medium ${getPriorityColor(artifact.priority)}`}>
+                                {artifact.priority}
+                              </span>
+                            )}
+                          </td>
+                        )}
+                        {/* ONLY SHOW VALUE CELL TO ADMINS */}
+                        {isAdmin && (
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {artifact.value && `$${artifact.value}`}
+                          </td>
+                        )}
+                        {isAdmin && (
+                          <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleEdit(artifact)}
+                                className="text-blue-600 hover:text-blue-800"
+                                title="Edit"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDuplicate(artifact)}
+                                className="text-purple-600 hover:text-purple-800"
+                                title="Duplicate"
+                              >
+                                <Copy className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(artifact.id)}
+                                className="text-red-600 hover:text-red-800"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </td>
                         )}
                       </tr>
@@ -889,463 +922,77 @@ useEffect(() => {
               </div>
             )}
           </>
-        ) : activeTab === 'exhibits' ? (
+        ) : (
+          /* Exhibits Tab */
           <ExhibitManager user={user} isAdmin={isAdmin} artifacts={artifacts} />
-        ) : activeTab === 'displayGroups' ? (
-          <DisplayGroupsManager 
-            user={user} 
-            isAdmin={isAdmin}
-            db={db}
-            collection={collection}
-            doc={doc}
-            getDocs={getDocs}
-            addDoc={addDoc}
-            updateDoc={updateDoc}
-            deleteDoc={deleteDoc}
-            query={query}
-            orderBy={orderBy}
-            where={where}
-          />
-        ) : null}
+        )}
 
-        {/* Form Modal */}
-        {showForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-                <h2 className="text-2xl font-bold">
-                  {editingId ? 'Edit Artifact' : 'Add New Artifact'}
-                </h2>
-                <button
-                  onClick={resetForm}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-              
-              <div className="p-6 space-y-6">
-                {/* Section: Basic Information */}
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Basic Information</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Name *
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={formData.name}
-                        onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Category *
-                      </label>
-                      <select
-                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={formData.category}
-                        onChange={(e) => setFormData({...formData, category: e.target.value})}
-                      >
-                        <option value="">Select category</option>
-                        {categories.map(cat => (
-                          <option key={cat} value={cat}>{cat}</option>
-                        ))}
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Manufacturer
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={formData.manufacturer}
-                        onChange={(e) => setFormData({...formData, manufacturer: e.target.value})}
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Model
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={formData.model}
-                        onChange={(e) => setFormData({...formData, model: e.target.value})}
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Serial Number
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={formData.serialNumber}
-                        onChange={(e) => setFormData({...formData, serialNumber: e.target.value})}
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Year
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={formData.year}
-                        onChange={(e) => setFormData({...formData, year: e.target.value})}
-                      />
-                    </div>
-                    
-                    <div className="sm:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Operating System
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={formData.os}
-                        onChange={(e) => setFormData({...formData, os: e.target.value})}
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Section: Display Information */}
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Display Information</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Display Group *
-                      </label>
-                      <select
-                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={formData.displayGroup}
-                        onChange={(e) => setFormData({...formData, displayGroup: e.target.value})}
-                      >
-                        <option value="">Select display group</option>
-                        {displayGroups.map(group => (
-                          <option key={group} value={group}>{group}</option>
-                        ))}
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Location
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="e.g., Display Case A"
-                        value={formData.location}
-                        onChange={(e) => setFormData({...formData, location: e.target.value})}
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Section: Condition and Value */}
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Condition & Value</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Condition
-                      </label>
-                      <select
-                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={formData.condition}
-                        onChange={(e) => setFormData({...formData, condition: e.target.value})}
-                      >
-                        <option value="">Select condition</option>
-                        <option value="Mint">Mint</option>
-                        <option value="Excellent">Excellent</option>
-                        <option value="Good">Good</option>
-                        <option value="Fair">Fair</option>
-                        <option value="Poor">Poor</option>
-                        <option value="Working">Working</option>
-                        <option value="Non-working">Non-working</option>
-                        <option value="Restored">Restored</option>
-                        <option value="For Parts">For Parts</option>
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Estimated Value
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-2 text-gray-500">$</span>
-                        <input
-                          type="text"
-                          className="w-full pl-8 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={formData.estimatedValue}
-                          onChange={(e) => setFormData({...formData, estimatedValue: e.target.value})}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Section: Acquisition */}
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Acquisition Details</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Acquisition Date
-                      </label>
-                      <input
-                        type="date"
-                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={formData.acquisitionDate}
-                        onChange={(e) => setFormData({...formData, acquisitionDate: e.target.value})}
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Donor/Source
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={formData.donor}
-                        onChange={(e) => setFormData({...formData, donor: e.target.value})}
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Section: Task Management */}
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Task Management</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Status
-                      </label>
-                      <select
-                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={formData.taskStatus}
-                        onChange={(e) => setFormData({...formData, taskStatus: e.target.value})}
-                      >
-                        <option value="To Do">To Do</option>
-                        <option value="In Progress">In Progress</option>
-                        <option value="Complete">Complete</option>
-                        <option value="None">None</option>
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Priority
-                      </label>
-                      <select
-                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={formData.taskPriority}
-                        onChange={(e) => setFormData({...formData, taskPriority: e.target.value})}
-                        disabled={formData.taskStatus === 'Complete' || formData.taskStatus === 'None'}
-                      >
-                        <option value="High">High</option>
-                        <option value="Medium">Medium</option>
-                        <option value="Low">Low</option>
-                        <option value="None">None</option>
-                      </select>
-                    </div>
-                    
-                    <div className="sm:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Task Notes
-                      </label>
-                      <textarea
-                        rows={2}
-                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Tasks to complete, issues to address..."
-                        value={formData.taskNotes}
-                        onChange={(e) => setFormData({...formData, taskNotes: e.target.value})}
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Section: Additional Information */}
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Additional Information</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Description
-                      </label>
-                      <textarea
-                        rows={3}
-                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={formData.description}
-                        onChange={(e) => setFormData({...formData, description: e.target.value})}
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Notes
-                      </label>
-                      <textarea
-                        rows={3}
-                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={formData.notes}
-                        onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Section: Images with Drag-and-Drop Reordering */}
-                <div className="sm:col-span-2">
-                  <ImageManagement
-                    images={formData.images}
-                    onImagesUpdate={handleImagesUpdate}
-                    onImageUpload={handleImageUpload}
-                    uploading={uploading}
-                    disabled={!isAdmin}
-                  />
-                </div>
-                
-                {/* Action Buttons */}
-                <div className="flex gap-4 pt-6 border-t">
-                  <button
-                    onClick={handleSave}
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Save className="w-4 h-4" />
-                    {editingId ? 'Update Artifact' : 'Save Artifact'}
-                  </button>
-                  <button
-                    onClick={resetForm}
-                    className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+        {/* Artifact Detail Modal - MUST PASS isAdmin */}
+        {selectedArtifact && (
+          <ArtifactDetailModal
+            artifact={selectedArtifact}
+            isAdmin={isAdmin}
+            onClose={() => setSelectedArtifact(null)}
+          />
         )}
 
         {/* Success Modal */}
         {showSuccessModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg p-6 max-w-sm w-full animate-fade-in">
-              <div className="flex items-center justify-center w-12 h-12 mx-auto bg-green-100 rounded-full mb-4">
-                <CheckCircle2 className="w-6 h-6 text-green-600" />
+            <div className="bg-white rounded-lg max-w-md w-full p-6 transform transition-all">
+              <div className="flex items-center justify-center mb-4">
+                <div className="bg-green-100 rounded-full p-3">
+                  <CheckCircle2 className="w-8 h-8 text-green-600" />
+                </div>
               </div>
-              <h3 className="text-lg font-semibold text-center mb-2">Success!</h3>
-              <p className="text-gray-600 text-center">
-                {successModalData.name} has been {successModalData.action} successfully.
+              
+              <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">
+                Success!
+              </h2>
+              
+              <p className="text-gray-600 text-center mb-6">
+                <span className="font-semibold">"{successModalData.name}"</span> has been {successModalData.action} to the collection.
               </p>
-              <button
-                onClick={() => setShowSuccessModal(false)}
-                className="w-full mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                OK
-              </button>
+              
+              <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                <p className="text-sm text-gray-600 text-center">
+                  Would you like to add another artifact?
+                </p>
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowSuccessModal(false);
+                    setShowForm(true);
+                  }}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Add Another
+                </button>
+                <button
+                  onClick={() => setShowSuccessModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Done
+                </button>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Artifact Detail Modal */}
-        {selectedArtifact && (
-          <ArtifactDetailModal 
-            artifact={selectedArtifact}
-            onClose={() => setSelectedArtifact(null)}
-            isAdmin={isAdmin}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
+        {/* Add/Edit Form Modal */}
+        {showForm && isAdmin && (
+          <ArtifactForm
+            formData={formData}
+            setFormData={setFormData}
+            handleSave={handleSave}
+            handleImageUpload={handleImageUpload}
+            removeImage={removeImage}
+            uploading={uploading}
+            editingId={editingId}
+            onCancel={resetForm}
           />
-        )}
-
-        {/* Login Modal */}
-        {showLoginForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-md w-full p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold">Sign In</h2>
-                <button
-                  onClick={() => setShowLoginForm(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-              
-              {authError && (
-                <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">
-                  {authError}
-                </div>
-              )}
-              
-              <form onSubmit={handleEmailLogin} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={loginData.email}
-                    onChange={(e) => setLoginData({...loginData, email: e.target.value})}
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={loginData.password}
-                    onChange={(e) => setLoginData({...loginData, password: e.target.value})}
-                  />
-                </div>
-                
-                <button
-                  type="submit"
-                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Sign In with Email
-                </button>
-              </form>
-              
-              <div className="mt-4 relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white text-gray-500">Or</span>
-                </div>
-              </div>
-              
-              <button
-                onClick={handleGoogleLogin}
-                className="mt-4 w-full px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
-              >
-                <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
-                Sign In with Google
-              </button>
-            </div>
-          </div>
         )}
       </div>
     </div>
