@@ -4,6 +4,7 @@ import ExhibitManager from './ExhibitManager';
 import ArtifactDetailModal from './ArtifactDetailModal';
 import DisplayGroupsManager from './DisplayGroupsManager';
 import ImageManagement from './ImageManagement';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 // Firebase imports
 import { auth, googleProvider, db, storage } from '../firebase';
@@ -53,6 +54,9 @@ const ComputingGalleryManager = () => {
   const [successModalData, setSuccessModalData] = useState({ name: '', action: '' });
   const [selectedArtifact, setSelectedArtifact] = useState(null);
   const [displayGroupsFromDB, setDisplayGroupsFromDB] = useState([]);
+
+  const location = useLocation();
+  const navigate = useNavigate();
   
   const categories = [
     'Mainframe', 'Minicomputer', 'Microcomputer', 'Personal Computer',
@@ -187,6 +191,18 @@ const ComputingGalleryManager = () => {
       console.error('Logout error:', error);
     }
   };
+
+  // For URL navigation
+  useEffect(() => {
+  // Parse URL parameters
+  const params = new URLSearchParams(location.search);
+  const tabParam = params.get('tab');
+  
+  // Set active tab based on URL parameter
+  if (tabParam && ['artifacts', 'exhibits', 'displayGroups'].includes(tabParam)) {
+    setActiveTab(tabParam);
+  }
+}, [location.search]);
 
   // Add auth state listener in useEffect
   useEffect(() => {
@@ -585,50 +601,59 @@ const ComputingGalleryManager = () => {
             </div>
           </div>
 
-          {/* Tab Navigation */}
-          <nav className="flex space-x-8 border-b border-gray-200">
-            <button
-              onClick={() => setActiveTab('artifacts')}
-              className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'artifacts'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <Package className="w-4 h-4" />
-                Artifacts
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab('exhibits')}
-              className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'exhibits'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <Eye className="w-4 h-4" />
-                Exhibits
-              </div>
-            </button>
-            {(isAdmin === true && user !== null) && (
-              <button
-                onClick={() => setActiveTab('displayGroups')}
-                className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'displayGroups'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Layers className="w-4 h-4" />
-                  Display Groups
-                </div>
-              </button>
-            )}
-          </nav>
+{/* Tab Navigation */}
+<nav className="flex space-x-8 border-b border-gray-200">
+  <button
+    onClick={() => {
+      setActiveTab('artifacts');
+      navigate('/?tab=artifacts');
+    }}
+    className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+      activeTab === 'artifacts'
+        ? 'border-blue-500 text-blue-600'
+        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+    }`}
+  >
+    <div className="flex items-center gap-2">
+      <Package className="w-4 h-4" />
+      Artifacts
+    </div>
+  </button>
+  <button
+    onClick={() => {
+      setActiveTab('exhibits');
+      navigate('/?tab=exhibits');
+    }}
+    className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+      activeTab === 'exhibits'
+        ? 'border-blue-500 text-blue-600'
+        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+    }`}
+  >
+    <div className="flex items-center gap-2">
+      <Eye className="w-4 h-4" />
+      Exhibits
+    </div>
+  </button>
+  {(isAdmin === true && user !== null) && (
+    <button
+      onClick={() => {
+        setActiveTab('displayGroups');
+        navigate('/?tab=displayGroups');
+      }}
+      className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+        activeTab === 'displayGroups'
+          ? 'border-blue-500 text-blue-600'
+          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+      }`}
+    >
+      <div className="flex items-center gap-2">
+        <Layers className="w-4 h-4" />
+        Display Groups
+      </div>
+    </button>
+  )}
+</nav>
         </header>
 
         {/* Content based on active tab */}
