@@ -135,7 +135,7 @@ const ComputingGalleryManager = () => {
     
         setAuthError(genericErrorMessage);
         return { success: false, error: genericErrorMessage };
-      }
+    }
   };
 
   // Real Google login

@@ -73,13 +73,20 @@ export const useAuth = () => {
         });
       }
       
-      return { success: true };
-    } catch (error) {
-      console.error('Login error:', error);
-      setAuthError(error.message);
-      return { success: false, error: error.message };
-    }
-  };
+    return { success: true };
+  } catch (error) {
+    console.error('Login error:', error);
+    
+    // Map all authentication errors to a generic message
+    const genericErrorMessage = 'Invalid Email or Password';
+    
+    // You can still log the specific error for debugging
+    console.error('Specific error code:', error.code);
+    
+    setAuthError(genericErrorMessage);
+    return { success: false, error: genericErrorMessage };
+  }
+};
 
   const handleGoogleLogin = async () => {
     try {
