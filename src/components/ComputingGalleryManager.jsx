@@ -4,8 +4,7 @@ import ExhibitManager from './ExhibitManager';
 import ArtifactDetailModal from './ArtifactDetailModal';
 import DisplayGroupsManager from './DisplayGroupsManager';
 import ImageManagement from './ImageManagement';
-import { useArtifactFilters } from '../hooks/useArtifactFilters';
-import ArtifactsControls from './artifacts/ArtifactsControls';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 // Firebase imports
 import { auth, googleProvider, db, storage } from '../firebase';
@@ -41,43 +40,57 @@ const ComputingGalleryManager = () => {
   const [authError, setAuthError] = useState('');
   
   // App states
-  const [activeTab, setActiveTab] = useState('artifacts');
+  const [activeTab, setActiveTab] = useState('artifacts'); // New state for tabs
   const [artifacts, setArtifacts] = useState([]);
+  const [filteredArtifacts, setFilteredArtifacts] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [filterGroup, setFilterGroup] = useState('all');
   const [viewMode, setViewMode] = useState('grid');
   const [uploading, setUploading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successModalData, setSuccessModalData] = useState({ name: '', action: '' });
   const [selectedArtifact, setSelectedArtifact] = useState(null);
   const [displayGroupsFromDB, setDisplayGroupsFromDB] = useState([]);
-  
-  // Use the custom hook for filtering and sorting
-  const {
-    filteredArtifacts,
-    searchTerm,
-    setSearchTerm,
-    filterCategory,
-    setFilterCategory,
-    filterGroup,
-    setFilterGroup,
-    sortBy,
-    setSortBy,
-    sortOrder,
-    setSortOrder
-  } = useArtifactFilters(artifacts);
+
+  const location = useLocation();
+  const navigate = useNavigate();
   
   const categories = [
     'Mainframe', 'Minicomputer', 'Microcomputer', 'Personal Computer',
     'Laptop', 'Server', 'Storage Device', 'Peripheral', 'Component',
     'Mobile Device', 'Media Player', 'Software', 'Documentation', 'Marketing', 'Book', 'Clothing', 'Other'
   ];
+
+// Helper function to get consistent condition colors
+// Add this function to your ComputingGalleryManager component
+
+const getConditionColor = (condition) => {
+  switch(condition) {
+    case 'Mint':
+    case 'Excellent':
+      return 'bg-green-100 text-green-800';
+    case 'Good':
+    case 'Working':
+      return 'bg-blue-100 text-blue-800';
+    case 'Fair':
+    case 'Restored':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'Poor':
+    case 'For Parts':
+      return 'bg-red-100 text-red-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
   
   // Dynamic display groups from database
   const displayGroups = displayGroupsFromDB.length > 0 
     ? displayGroupsFromDB 
-    : ['Pre-1970s', '1970s', '1980s', '1990s', '2000s', '2010s+'];
-  
+    : ['Early Computing Era', 'Personal Computer Revolution', 'Modern Era'];
+
   const [formData, setFormData] = useState({
     name: '',
     category: '',
@@ -100,39 +113,6 @@ const ComputingGalleryManager = () => {
     images: []
   });
 
-  // Real sign up
-  const handleSignUp = async (email, password, displayName) => {
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      
-      if (displayName) {
-        await updateProfile(user, { displayName });
-      }
-      
-      await setDoc(doc(db, 'users', user.uid), {
-        email: user.email,
-        displayName: displayName || user.email,
-        role: 'visitor',
-        createdAt: new Date()
-      });
-      
-      setUser({
-        uid: user.uid,
-        email: user.email,
-        displayName: displayName || user.email,
-        role: 'visitor'
-      });
-      
-      setIsAdmin(false);
-      setShowLoginForm(false);
-      setAuthError('');
-    } catch (error) {
-      console.error('Sign up error:', error);
-      setAuthError(error.message);
-    }
-  };
-
   // Real email/password login
   const handleEmailLogin = async (e) => {
     e.preventDefault();
@@ -142,7 +122,7 @@ const ComputingGalleryManager = () => {
       const userCredential = await signInWithEmailAndPassword(auth, loginData.email, loginData.password);
       const user = userCredential.user;
       
-      // Get user data from Firestore
+      // Check if user document exists
       const userDocRef = doc(db, 'users', user.uid);
       const userDoc = await getDoc(userDocRef);
       
@@ -151,6 +131,7 @@ const ComputingGalleryManager = () => {
         await setDoc(userDocRef, {
           email: user.email,
           displayName: user.displayName || user.email,
+          photoURL: user.photoURL || null,
           role: 'visitor',
           createdAt: new Date()
         });
@@ -162,6 +143,7 @@ const ComputingGalleryManager = () => {
         uid: user.uid,
         email: user.email,
         displayName: user.displayName || user.email,
+        photoURL: user.photoURL,
         role: userData.role || 'visitor'
       });
       
@@ -169,8 +151,16 @@ const ComputingGalleryManager = () => {
       setShowLoginForm(false);
       setLoginData({ email: '', password: '' });
     } catch (error) {
-      console.error('Login error:', error);
-      setAuthError(error.message);
+        console.error('Login error:', error);
+    
+        // Map all authentication errors to a generic message
+        const genericErrorMessage = 'Invalid Email or Password';
+    
+        // You can still log the specific error for debugging
+        console.error('Specific error code:', error.code);
+    
+        setAuthError(genericErrorMessage);
+        return { success: false, error: genericErrorMessage };
     }
   };
 
@@ -185,7 +175,7 @@ const ComputingGalleryManager = () => {
       const userDoc = await getDoc(userDocRef);
       
       if (!userDoc.exists()) {
-        // Create user document for first-time Google users
+        // Create user document for new Google users
         await setDoc(userDocRef, {
           email: user.email,
           displayName: user.displayName,
@@ -223,6 +213,18 @@ const ComputingGalleryManager = () => {
       console.error('Logout error:', error);
     }
   };
+
+  // For URL navigation
+  useEffect(() => {
+  // Parse URL parameters
+  const params = new URLSearchParams(location.search);
+  const tabParam = params.get('tab');
+  
+  // Set active tab based on URL parameter
+  if (tabParam && ['artifacts', 'exhibits', 'displayGroups'].includes(tabParam)) {
+    setActiveTab(tabParam);
+  }
+}, [location.search]);
 
   // Add auth state listener in useEffect
   useEffect(() => {
@@ -284,10 +286,12 @@ const ComputingGalleryManager = () => {
         });
         
         setArtifacts(artifactsData);
+        setFilteredArtifacts(artifactsData);
       } catch (error) {
         console.error('Error loading artifacts:', error);
         // Fallback to empty array if Firestore fails
         setArtifacts([]);
+        setFilteredArtifacts([]);
       }
     };
     
@@ -315,6 +319,30 @@ const ComputingGalleryManager = () => {
     
     loadDisplayGroups();
   }, [activeTab]); // Reload when switching tabs
+
+  // Filter artifacts based on search and filters
+  useEffect(() => {
+    let filtered = artifacts;
+    
+    if (searchTerm) {
+      filtered = filtered.filter(a => 
+        a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        a.manufacturer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        a.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        a.description.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    if (filterCategory !== 'all') {
+      filtered = filtered.filter(a => a.category === filterCategory);
+    }
+    
+    if (filterGroup !== 'all') {
+      filtered = filtered.filter(a => a.displayGroup === filterGroup);
+    }
+    
+    setFilteredArtifacts(filtered);
+  }, [searchTerm, filterCategory, filterGroup, artifacts]);
 
   // Updated image upload handler using Firebase Storage
   const handleImageUpload = async (e) => {
@@ -408,22 +436,21 @@ const ComputingGalleryManager = () => {
         // Update local state
         setArtifacts(prevArtifacts => 
           prevArtifacts.map(a => 
-            a.id === editingId ? { ...a, ...artifactData } : a
+            a.id === editingId ? { ...artifactData, id: editingId } : a
           )
         );
       } else {
         // Add new artifact
         artifactData.createdAt = new Date();
+        artifactData.createdBy = user?.uid || 'anonymous';
+        
         const docRef = await addDoc(collection(db, 'artifacts'), artifactData);
         
-        // Update local state
-        setArtifacts(prevArtifacts => [
-          { id: docRef.id, ...artifactData },
-          ...prevArtifacts
-        ]);
+        const newArtifact = { ...artifactData, id: docRef.id };
+        setArtifacts(prevArtifacts => [...prevArtifacts, newArtifact]);
       }
       
-      // Show success modal
+      // Show success modal instead of browser confirm
       const action = editingId ? 'updated' : 'added';
       setSuccessModalData({ name: formData.name, action });
       setShowSuccessModal(true);
@@ -522,37 +549,54 @@ const ComputingGalleryManager = () => {
 
   const getStatusIcon = (status) => {
     switch(status) {
-      case 'Completed':
-        return <CheckCircle className="w-5 h-5 text-green-500" />;
-      case 'In Progress':
-        return <Clock className="w-5 h-5 text-yellow-500" />;
-      case 'To Do':
-        return <Package className="w-5 h-5 text-gray-400" />;
-      default:
-        return null;
+      case 'Complete': return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case 'In Progress': return <Clock className="w-4 h-4 text-yellow-500" />;
+      default: return <Clock className="w-4 h-4 text-gray-400" />;
+    }
+  };
+
+  const getPriorityColor = (priority) => {
+    switch(priority) {
+      case 'High': return 'text-red-600 bg-red-50';
+      case 'Medium': return 'text-orange-600 bg-orange-50';
+      case 'Low': return 'text-yellow-600 bg-yellow-50';
+      case 'None': return 'text-gray-600 bg-gray-50';
+      default: return 'text-gray-600 bg-gray-50';
     }
   };
 
   const handleArtifactClick = (artifact) => {
-    if (!showForm) {
-      setSelectedArtifact(artifact);
-    }
+    setSelectedArtifact(artifact);
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto p-4 md:p-6">
-        {/* Header */}
-        <header className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <div className="flex justify-between items-center mb-4">
-            <h1 className="text-3xl font-bold text-gray-900">Computing Artifacts Gallery</h1>
+      <div className="max-w-7xl mx-auto p-6">
+        {/* Header with Auth */}
+        <header className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900 mb-2">Computing Artifacts Gallery</h1>
+              <p className="text-gray-600">
+                {user ? (
+                  isAdmin ? 'Admin Dashboard - Manage your computing history collection' : 'Visitor View - Browse the collection'
+                ) : 'Public Gallery - Sign in for more features'}
+              </p>
+            </div>
+            
             <div className="flex items-center gap-4">
               {user ? (
                 <>
-                  <div className="flex items-center gap-2">
-                    <User className="w-5 h-5 text-gray-500" />
-                    <span className="text-sm text-gray-700">{user.displayName || user.email}</span>
-                    {isAdmin && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    {user.photoURL ? (
+                      <img src={user.photoURL} alt={user.displayName} className="w-8 h-8 rounded-full" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
+                        <User className="w-4 h-4 text-gray-600" />
+                      </div>
+                    )}
+                    <span>{user.displayName || user.email}</span>
+                    {(isAdmin === true && user !== null) && (
                       <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full flex items-center gap-1">
                         <Shield className="w-3 h-3" />
                         Admin
@@ -561,10 +605,10 @@ const ComputingGalleryManager = () => {
                   </div>
                   <button
                     onClick={handleLogout}
-                    className="px-4 py-2 text-gray-700 hover:text-gray-900 flex items-center gap-2"
+                    className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors flex items-center gap-2"
                   >
                     <LogOut className="w-4 h-4" />
-                    Logout
+                    Sign Out
                   </button>
                 </>
               ) : (
@@ -573,82 +617,129 @@ const ComputingGalleryManager = () => {
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
                 >
                   <LogIn className="w-4 h-4" />
-                  Login
+                  Sign In
                 </button>
               )}
             </div>
           </div>
-          
-          {/* Tabs Navigation */}
-          <nav className="flex gap-4 border-t pt-4">
-            <button
-              onClick={() => setActiveTab('artifacts')}
-              className={`px-4 py-2 font-medium transition-colors border-b-2 ${
-                activeTab === 'artifacts' 
-                  ? 'border-blue-500 text-blue-600' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <Package className="w-4 h-4" />
-                Artifacts
-              </div>
-            </button>
-            
-            <button
-              onClick={() => setActiveTab('exhibits')}
-              className={`px-4 py-2 font-medium transition-colors border-b-2 ${
-                activeTab === 'exhibits' 
-                  ? 'border-blue-500 text-blue-600' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <Eye className="w-4 h-4" />
-                Exhibits
-              </div>
-            </button>
-            
-            {isAdmin && (
-              <button
-                onClick={() => setActiveTab('displayGroups')}
-                className={`px-4 py-2 font-medium transition-colors border-b-2 ${
-                  activeTab === 'displayGroups' 
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Layers className="w-4 h-4" />
-                  Display Groups
-                </div>
-              </button>
-            )}
-          </nav>
+
+{/* Tab Navigation */}
+<nav className="flex space-x-8 border-b border-gray-200">
+  <button
+    onClick={() => {
+      setActiveTab('artifacts');
+      navigate('/?tab=artifacts');
+    }}
+    className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+      activeTab === 'artifacts'
+        ? 'border-blue-500 text-blue-600'
+        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+    }`}
+  >
+    <div className="flex items-center gap-2">
+      <Package className="w-4 h-4" />
+      Artifacts
+    </div>
+  </button>
+  <button
+    onClick={() => {
+      setActiveTab('exhibits');
+      navigate('/?tab=exhibits');
+    }}
+    className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+      activeTab === 'exhibits'
+        ? 'border-blue-500 text-blue-600'
+        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+    }`}
+  >
+    <div className="flex items-center gap-2">
+      <Eye className="w-4 h-4" />
+      Exhibits
+    </div>
+  </button>
+  {(isAdmin === true && user !== null) && (
+    <button
+      onClick={() => {
+        setActiveTab('displayGroups');
+        navigate('/?tab=displayGroups');
+      }}
+      className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+        activeTab === 'displayGroups'
+          ? 'border-blue-500 text-blue-600'
+          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+      }`}
+    >
+      <div className="flex items-center gap-2">
+        <Layers className="w-4 h-4" />
+        Display Groups
+      </div>
+    </button>
+  )}
+</nav>
         </header>
 
         {/* Content based on active tab */}
         {activeTab === 'artifacts' ? (
           <>
             {/* Controls */}
-            <ArtifactsControls
-              searchTerm={searchTerm}
-              onSearchChange={setSearchTerm}
-              filterCategory={filterCategory}
-              onCategoryChange={setFilterCategory}
-              filterGroup={filterGroup}
-              onGroupChange={setFilterGroup}
-              categories={categories}
-              displayGroups={displayGroups}
-              viewMode={viewMode}
-              onViewModeChange={setViewMode}
-              isAdmin={isAdmin}
-              onAddArtifact={() => setShowForm(true)}
-              sortBy={sortBy}
-              onSortByChange={setSortBy}
-              sortOrder={sortOrder}
-              onSortOrderChange={setSortOrder}
-            />
+            <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+              <div className="flex flex-wrap gap-4 items-center justify-between">
+                <div className="flex flex-wrap gap-4 items-center flex-1">
+                  <div className="relative flex-1 min-w-64">
+                    <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search artifacts..."
+                      className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                  
+                  <select
+                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={filterCategory}
+                    onChange={(e) => setFilterCategory(e.target.value)}
+                  >
+                    <option value="all">All Categories</option>
+                    {categories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                  
+                  <select
+                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={filterGroup}
+                    onChange={(e) => setFilterGroup(e.target.value)}
+                  >
+                    <option value="all">All Display Groups</option>
+                    {displayGroups.map(group => (
+                      <option key={group} value={group}>{group}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+                    className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2"
+                  >
+                    {viewMode === 'grid' ? <List className="w-4 h-4" /> : <Grid className="w-4 h-4" />}
+                    {viewMode === 'grid' ? 'List View' : 'Grid View'}
+                  </button>
+                  
+                  {(isAdmin === true && user !== null) && (
+                    <button
+                      onClick={() => setShowForm(true)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add Artifact
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
 
             {/* Artifacts Display */}
             {filteredArtifacts.length === 0 ? (
@@ -707,28 +798,46 @@ const ComputingGalleryManager = () => {
                         {artifact.condition && (
                           <span className={`text-xs px-2 py-1 rounded-full ${
                             artifact.condition === 'Mint' || artifact.condition === 'Excellent' ? 'bg-green-100 text-green-800' :
-                            artifact.condition === 'Good' || artifact.condition === 'Working' ? 'bg-yellow-100 text-yellow-800' :
+                            artifact.condition === 'Good' || artifact.condition === 'Working' ? 'bg-blue-100 text-blue-800' :
+                            artifact.condition === 'Fair' || artifact.condition === 'Restored' ? 'bg-yellow-100 text-yellow-800' :
                             'bg-red-100 text-red-800'
-                          }`}>
+                            }`}>
                             {artifact.condition}
                           </span>
                         )}
                       </div>
                       
+                      {artifact.description && (
+                        <p className="text-sm text-gray-600 line-clamp-2 mb-3">
+                          {artifact.description}
+                        </p>
+                      )}
+                      
+                      {/* Priority admin control*/}
+                      {isAdmin && artifact.taskPriority && artifact.taskStatus !== 'Complete' && (
+                        <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${getPriorityColor(artifact.taskPriority)}`}>
+                        Priority: {artifact.taskPriority}
+                        </div>
+                      )}
+                      
                       {(isAdmin === true && user !== null) && (
-                        <div className="flex gap-2" onClick={e => e.stopPropagation()}>
+                        <div className="flex gap-2 mt-4 pt-4 border-t">
                           <button
-                            onClick={() => handleEdit(artifact)}
-                            className="flex-1 px-3 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors flex items-center justify-center gap-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEdit(artifact);
+                            }}
+                            className="flex-1 px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
                           >
-                            <Edit2 className="w-4 h-4" />
                             Edit
                           </button>
                           <button
-                            onClick={() => handleDelete(artifact.id)}
-                            className="flex-1 px-3 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors flex items-center justify-center gap-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(artifact.id);
+                            }}
+                            className="flex-1 px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
                           >
-                            <Trash2 className="w-4 h-4" />
                             Delete
                           </button>
                         </div>
@@ -737,200 +846,399 @@ const ComputingGalleryManager = () => {
                   </div>
                 ))}
               </div>
-            ) : (
-              <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Artifact</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Manufacturer</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      {(isAdmin === true && user !== null) && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>}
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredArtifacts.map(artifact => (
-                      <tr 
-                        key={artifact.id} 
-                        className="hover:bg-gray-50 cursor-pointer"
-                        onClick={() => handleArtifactClick(artifact)}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            {artifact.images && artifact.images.length > 0 ? (
-                              <img 
-                                className="h-10 w-10 rounded-full object-cover" 
-                                src={artifact.images[0]} 
-                                alt={artifact.name} 
-                              />
-                            ) : (
-                              <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                                <Camera className="w-5 h-5 text-gray-400" />
-                              </div>
-                            )}
-                            <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">{artifact.name}</div>
-                              <div className="text-sm text-gray-500">{artifact.model}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{artifact.category}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{artifact.manufacturer}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{artifact.year || '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {artifact.taskStatus && getStatusIcon(artifact.taskStatus)}
-                        </td>
-                        {(isAdmin === true && user !== null) && (
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500" onClick={e => e.stopPropagation()}>
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleEdit(artifact)}
-                                className="text-blue-600 hover:text-blue-900"
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(artifact.id)}
-                                className="text-red-600 hover:text-red-900"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+// Updated list view section for ComputingGalleryManager.jsx
+// This replaces the table section in the component
+
+) : (
+  <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+    <table className="min-w-full divide-y divide-gray-200">
+      <thead className="bg-gray-50">
+        <tr>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Manufacturer</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Condition</th>
+          {(isAdmin === true && user !== null) && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>}
+          {(isAdmin === true && user !== null) && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>}
+        </tr>
+      </thead>
+      <tbody className="bg-white divide-y divide-gray-200">
+        {filteredArtifacts.map(artifact => (
+          <tr 
+            key={artifact.id} 
+            className="hover:bg-gray-50 cursor-pointer"
+            onClick={() => handleArtifactClick(artifact)}
+          >
+            <td className="px-6 py-4 whitespace-nowrap">
+              <div className="flex items-center">
+                {artifact.images && artifact.images.length > 0 ? (
+                  <img 
+                    src={artifact.images[0]} 
+                    alt={artifact.name}
+                    className="w-10 h-10 rounded-lg object-cover mr-3"
+                  />
+                ) : (
+                  <div className="w-10 h-10 bg-gray-200 rounded-lg mr-3 flex items-center justify-center">
+                    <Camera className="w-5 h-5 text-gray-400" />
+                  </div>
+                )}
+                <div className="text-sm font-medium text-gray-900">{artifact.name}</div>
               </div>
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              {artifact.category}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              {artifact.manufacturer}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              {artifact.year}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap">
+              {artifact.condition && (
+                <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                  artifact.condition === 'Mint' || artifact.condition === 'Excellent' ? 'bg-green-100 text-green-800' :
+                  artifact.condition === 'Good' || artifact.condition === 'Working' ? 'bg-blue-100 text-blue-800' :
+                  artifact.condition === 'Fair' || artifact.condition === 'Restored' ? 'bg-yellow-100 text-yellow-800' :
+                  'bg-red-100 text-red-800'
+                }`}>
+                  {artifact.condition}
+                </span>
+              )}
+            </td>
+            {(isAdmin === true && user !== null) && (
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="flex items-center gap-2">
+                  {getStatusIcon(artifact.status)}
+                  <span className="text-sm text-gray-500">{artifact.status}</span>
+                </div>
+              </td>
             )}
+            {(isAdmin === true && user !== null) && (
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEdit(artifact);
+                  }}
+                  className="text-blue-600 hover:text-blue-900 mr-4"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(artifact.id);
+                  }}
+                  className="text-red-600 hover:text-red-900"
+                >
+                  Delete
+                </button>
+              </td>
+            )}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+)}
           </>
         ) : activeTab === 'exhibits' ? (
-          <ExhibitManager 
-            artifacts={artifacts}
-            isAdmin={isAdmin}
-            user={user}
-          />
+          <ExhibitManager user={user} isAdmin={isAdmin} artifacts={artifacts} />
         ) : activeTab === 'displayGroups' ? (
-          <DisplayGroupsManager />
+          <DisplayGroupsManager 
+            user={user} 
+            isAdmin={isAdmin}
+            db={db}
+            collection={collection}
+            doc={doc}
+            getDocs={getDocs}
+            addDoc={addDoc}
+            updateDoc={updateDoc}
+            deleteDoc={deleteDoc}
+            query={query}
+            orderBy={orderBy}
+            where={where}
+          />
         ) : null}
 
-        {/* Add/Edit Form Modal */}
+        {/* Form Modal */}
         {showForm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold">
-                    {editingId ? 'Edit Artifact' : 'Add New Artifact'}
-                  </h2>
-                  <button
-                    onClick={resetForm}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="w-6 h-6" />
-                  </button>
+              <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
+                <h2 className="text-2xl font-bold">
+                  {editingId ? 'Edit Artifact' : 'Add New Artifact'}
+                </h2>
+                <button
+                  onClick={resetForm}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-6">
+                {/* Section: Basic Information */}
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Basic Information</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Name *
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={formData.name}
+                        onChange={(e) => setFormData({...formData, name: e.target.value})}
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Category *
+                      </label>
+                      <select
+                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={formData.category}
+                        onChange={(e) => setFormData({...formData, category: e.target.value})}
+                      >
+                        <option value="">Select category</option>
+                        {categories.map(cat => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Manufacturer
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={formData.manufacturer}
+                        onChange={(e) => setFormData({...formData, manufacturer: e.target.value})}
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Model
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={formData.model}
+                        onChange={(e) => setFormData({...formData, model: e.target.value})}
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Serial Number
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={formData.serialNumber}
+                        onChange={(e) => setFormData({...formData, serialNumber: e.target.value})}
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Year
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={formData.year}
+                        onChange={(e) => setFormData({...formData, year: e.target.value})}
+                      />
+                    </div>
+                    
+                    <div className="sm:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Operating System
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={formData.os}
+                        onChange={(e) => setFormData({...formData, os: e.target.value})}
+                      />
+                    </div>
+                  </div>
                 </div>
                 
-                <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-6">
-                  {/* Basic Information */}
-                  <div>
-                    <h3 className="text-lg font-semibold mb-4">Basic Information</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Name *
-                        </label>
+                {/* Section: Display Information */}
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Display Information</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Display Group *
+                      </label>
+                      <select
+                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={formData.displayGroup}
+                        onChange={(e) => setFormData({...formData, displayGroup: e.target.value})}
+                      >
+                        <option value="">Select display group</option>
+                        {displayGroups.map(group => (
+                          <option key={group} value={group}>{group}</option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Location
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="e.g., Display Case A"
+                        value={formData.location}
+                        onChange={(e) => setFormData({...formData, location: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Section: Condition and Value */}
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Condition & Value</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Condition
+                      </label>
+                      <select
+                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={formData.condition}
+                        onChange={(e) => setFormData({...formData, condition: e.target.value})}
+                      >
+                        <option value="">Select condition</option>
+                        <option value="Mint">Mint</option>
+                        <option value="Excellent">Excellent</option>
+                        <option value="Good">Good</option>
+                        <option value="Fair">Fair</option>
+                        <option value="Poor">Poor</option>
+                        <option value="Working">Working</option>
+                        <option value="Non-working">Non-working</option>
+                        <option value="Restored">Restored</option>
+                        <option value="For Parts">For Parts</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Estimated Value
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2 text-gray-500">$</span>
                         <input
                           type="text"
-                          required
-                          className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={formData.name}
-                          onChange={(e) => setFormData({...formData, name: e.target.value})}
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Category *
-                        </label>
-                        <select
-                          required
-                          className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={formData.category}
-                          onChange={(e) => setFormData({...formData, category: e.target.value})}
-                        >
-                          <option value="">Select a category</option>
-                          {categories.map(cat => (
-                            <option key={cat} value={cat}>{cat}</option>
-                          ))}
-                        </select>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Manufacturer
-                        </label>
-                        <input
-                          type="text"
-                          className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={formData.manufacturer}
-                          onChange={(e) => setFormData({...formData, manufacturer: e.target.value})}
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Model
-                        </label>
-                        <input
-                          type="text"
-                          className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={formData.model}
-                          onChange={(e) => setFormData({...formData, model: e.target.value})}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Serial Number
-                        </label>
-                        <input
-                          type="text"
-                          className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={formData.serialNumber}
-                          onChange={(e) => setFormData({...formData, serialNumber: e.target.value})}
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Year
-                        </label>
-                        <input
-                          type="text"
-                          className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={formData.year}
-                          onChange={(e) => setFormData({...formData, year: e.target.value})}
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Operating System
-                        </label>
-                        <input
-                          type="text"
-                          className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={formData.os}
-                          onChange={(e) => setFormData({...formData, os: e.target.value})}
+                          className="w-full pl-8 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          value={formData.estimatedValue}
+                          onChange={(e) => setFormData({...formData, estimatedValue: e.target.value})}
                         />
                       </div>
                     </div>
+                  </div>
+                </div>
+                
+                {/* Section: Acquisition */}
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Acquisition Details</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Acquisition Date
+                      </label>
+                      <input
+                        type="date"
+                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={formData.acquisitionDate}
+                        onChange={(e) => setFormData({...formData, acquisitionDate: e.target.value})}
+                      />
+                    </div>
                     
-                    <div className="mt-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Donor/Source
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={formData.donor}
+                        onChange={(e) => setFormData({...formData, donor: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Section: Task Management */}
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Task Management</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Status
+                      </label>
+                      <select
+                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={formData.taskStatus}
+                        onChange={(e) => setFormData({...formData, taskStatus: e.target.value})}
+                      >
+                        <option value="To Do">To Do</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Complete">Complete</option>
+                        <option value="None">None</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Priority
+                      </label>
+                      <select
+                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={formData.taskPriority}
+                        onChange={(e) => setFormData({...formData, taskPriority: e.target.value})}
+                        disabled={formData.taskStatus === 'Complete' || formData.taskStatus === 'None'}
+                      >
+                        <option value="High">High</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Low">Low</option>
+                        <option value="None">None</option>
+                      </select>
+                    </div>
+                    
+                    <div className="sm:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Task Notes
+                      </label>
+                      <textarea
+                        rows={2}
+                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Tasks to complete, issues to address..."
+                        value={formData.taskNotes}
+                        onChange={(e) => setFormData({...formData, taskNotes: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Section: Additional Information */}
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Additional Information</h3>
+                  <div className="space-y-4">
+                    <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Description
                       </label>
@@ -941,224 +1249,48 @@ const ComputingGalleryManager = () => {
                         onChange={(e) => setFormData({...formData, description: e.target.value})}
                       />
                     </div>
-                  </div>
-                  
-                  {/* Display Information */}
-                  <div>
-                    <h3 className="text-lg font-semibold mb-4">Display Information</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Condition
-                        </label>
-                        <select
-                          className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={formData.condition}
-                          onChange={(e) => setFormData({...formData, condition: e.target.value})}
-                        >
-                          <option value="">Select condition</option>
-                          <option value="Mint">Mint</option>
-                          <option value="Excellent">Excellent</option>
-                          <option value="Good">Good</option>
-                          <option value="Working">Working</option>
-                          <option value="Fair">Fair</option>
-                          <option value="Poor">Poor</option>
-                          <option value="For Parts">For Parts</option>
-                          <option value="Non-Working">Non-Working</option>
-                        </select>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Display Group *
-                        </label>
-                        <select
-                          required
-                          className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={formData.displayGroup}
-                          onChange={(e) => setFormData({...formData, displayGroup: e.target.value})}
-                        >
-                          <option value="">Select a display group</option>
-                          {displayGroups.map(group => (
-                            <option key={group} value={group}>{group}</option>
-                          ))}
-                        </select>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Location
-                        </label>
-                        <input
-                          type="text"
-                          className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={formData.location}
-                          onChange={(e) => setFormData({...formData, location: e.target.value})}
-                          placeholder="e.g., Display Case A, Storage Room B"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Acquisition Information */}
-                  <div>
-                    <h3 className="text-lg font-semibold mb-4">Acquisition Information</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          <DollarSign className="inline w-4 h-4" />
-                          Estimated Value
-                        </label>
-                        <input
-                          type="text"
-                          className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={formData.estimatedValue}
-                          onChange={(e) => setFormData({...formData, estimatedValue: e.target.value})}
-                          placeholder="e.g., $500"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Acquisition Date
-                        </label>
-                        <input
-                          type="date"
-                          className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={formData.acquisitionDate}
-                          onChange={(e) => setFormData({...formData, acquisitionDate: e.target.value})}
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Donor/Source
-                        </label>
-                        <input
-                          type="text"
-                          className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={formData.donor}
-                          onChange={(e) => setFormData({...formData, donor: e.target.value})}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Task Management */}
-                  <div>
-                    <h3 className="text-lg font-semibold mb-4">Task Management</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Status
-                        </label>
-                        <select
-                          className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={formData.taskStatus}
-                          onChange={(e) => setFormData({...formData, taskStatus: e.target.value})}
-                        >
-                          <option value="None">None</option>
-                          <option value="To Do">To Do</option>
-                          <option value="In Progress">In Progress</option>
-                          <option value="Completed">Completed</option>
-                        </select>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Priority
-                        </label>
-                        <select
-                          className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={formData.taskPriority}
-                          onChange={(e) => setFormData({...formData, taskPriority: e.target.value})}
-                          disabled={formData.taskStatus === 'None'}
-                        >
-                          <option value="Low">Low</option>
-                          <option value="Medium">Medium</option>
-                          <option value="High">High</option>
-                        </select>
-                      </div>
-                    </div>
                     
-                    <div className="mt-4">
+                    <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Task Notes
+                        Notes
                       </label>
                       <textarea
-                        rows={2}
+                        rows={3}
                         className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={formData.taskNotes}
-                        onChange={(e) => setFormData({...formData, taskNotes: e.target.value})}
-                        placeholder="Any specific tasks or to-dos for this artifact"
-                        disabled={formData.taskStatus === 'None'}
+                        value={formData.notes}
+                        onChange={(e) => setFormData({...formData, notes: e.target.value})}
                       />
                     </div>
                   </div>
-
-                  {/* Images Section */}
-                  <div>
-                    <h3 className="text-lg font-semibold mb-4">Images</h3>
-                    
-                    {/* Image Upload */}
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <Camera className="inline w-4 h-4 mr-1" />
-                        Upload Images
-                      </label>
-                      <input
-                        type="file"
-                        multiple
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        disabled={uploading}
-                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      {uploading && (
-                        <p className="text-sm text-blue-600 mt-2">Uploading images...</p>
-                      )}
-                    </div>
-                    
-                    {/* Image Management Component */}
-                    {formData.images && formData.images.length > 0 && (
-                      <ImageManagement 
-                        images={formData.images} 
-                        onImagesUpdate={handleImagesUpdate}
-                      />
-                    )}
-                  </div>
-                  
-                  {/* Additional Notes */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Additional Notes
-                    </label>
-                    <textarea
-                      rows={3}
-                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={formData.notes}
-                      onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                    />
-                  </div>
-                  
-                  {/* Form Actions */}
-                  <div className="flex gap-4 pt-4 border-t">
-                    <button
-                      type="submit"
-                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Save className="w-4 h-4" />
-                      {editingId ? 'Update Artifact' : 'Save Artifact'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={resetForm}
-                      className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
+                </div>
+                
+                {/* Section: Images with Drag-and-Drop Reordering */}
+                <div className="sm:col-span-2">
+                  <ImageManagement
+                    images={formData.images}
+                    onImagesUpdate={handleImagesUpdate}
+                    onImageUpload={handleImageUpload}
+                    uploading={uploading}
+                    disabled={!isAdmin}
+                  />
+                </div>
+                
+                {/* Action Buttons */}
+                <div className="flex gap-4 pt-6 border-t">
+                  <button
+                    onClick={handleSave}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Save className="w-4 h-4" />
+                    {editingId ? 'Update Artifact' : 'Save Artifact'}
+                  </button>
+                  <button
+                    onClick={resetForm}
+                    className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1167,17 +1299,17 @@ const ComputingGalleryManager = () => {
         {/* Success Modal */}
         {showSuccessModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg p-6 max-w-sm w-full">
-              <div className="flex items-center justify-center mb-4">
-                <CheckCircle2 className="w-16 h-16 text-green-500" />
+            <div className="bg-white rounded-lg p-6 max-w-sm w-full animate-fade-in">
+              <div className="flex items-center justify-center w-12 h-12 mx-auto bg-green-100 rounded-full mb-4">
+                <CheckCircle2 className="w-6 h-6 text-green-600" />
               </div>
-              <h3 className="text-xl font-semibold text-center mb-2">Success!</h3>
-              <p className="text-center text-gray-600 mb-4">
-                {successModalData.name} has been successfully {successModalData.action}.
+              <h3 className="text-lg font-semibold text-center mb-2">Success!</h3>
+              <p className="text-gray-600 text-center">
+                {successModalData.name} has been {successModalData.action} successfully.
               </p>
               <button
                 onClick={() => setShowSuccessModal(false)}
-                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="w-full mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 OK
               </button>
@@ -1187,26 +1319,23 @@ const ComputingGalleryManager = () => {
 
         {/* Artifact Detail Modal */}
         {selectedArtifact && (
-          <ArtifactDetailModal
+          <ArtifactDetailModal 
             artifact={selectedArtifact}
             onClose={() => setSelectedArtifact(null)}
-            onEdit={isAdmin ? handleEdit : null}
-            onDelete={isAdmin ? handleDelete : null}
+            isAdmin={isAdmin}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
           />
         )}
 
-        {/* Login Form Modal */}
+        {/* Login Modal */}
         {showLoginForm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <div className="bg-white rounded-lg max-w-md w-full p-6">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold">Login</h2>
+                <h2 className="text-2xl font-bold">Sign In</h2>
                 <button
-                  onClick={() => {
-                    setShowLoginForm(false);
-                    setAuthError('');
-                    setLoginData({ email: '', password: '' });
-                  }}
+                  onClick={() => setShowLoginForm(false)}
                   className="text-gray-400 hover:text-gray-600"
                 >
                   <X className="w-6 h-6" />
@@ -1214,7 +1343,7 @@ const ComputingGalleryManager = () => {
               </div>
               
               {authError && (
-                <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">
+                <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">
                   {authError}
                 </div>
               )}
@@ -1250,39 +1379,26 @@ const ComputingGalleryManager = () => {
                   type="submit"
                   className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
-                  Login with Email
+                  Sign In with Email
                 </button>
               </form>
               
-              <div className="mt-4 pt-4 border-t">
-                <button
-                  onClick={handleGoogleLogin}
-                  className="w-full px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
-                >
-                  <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
-                  Login with Google
-                </button>
+              <div className="mt-4 relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white text-gray-500">Or</span>
+                </div>
               </div>
               
-              <div className="mt-4 text-center">
-                <p className="text-sm text-gray-600">
-                  Don't have an account?{' '}
-                  <button
-                    onClick={() => {
-                      const email = prompt('Enter your email:');
-                      const password = prompt('Enter your password:');
-                      const displayName = prompt('Enter your display name (optional):');
-                      
-                      if (email && password) {
-                        handleSignUp(email, password, displayName);
-                      }
-                    }}
-                    className="text-blue-600 hover:underline"
-                  >
-                    Sign up
-                  </button>
-                </p>
-              </div>
+              <button
+                onClick={handleGoogleLogin}
+                className="mt-4 w-full px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+              >
+                <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
+                Sign In with Google
+              </button>
             </div>
           </div>
         )}
