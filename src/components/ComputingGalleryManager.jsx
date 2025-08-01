@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Edit2, Trash2, Plus, Search, Filter, Save, X, CheckCircle, Clock, DollarSign, Grid, List, LogIn, LogOut, User, Shield, Package, Eye, Copy, CheckCircle2, Layers } from 'lucide-react';
+import { Camera, Edit2, Trash2, Plus, Search, Filter, Save, X, CheckCircle, Clock, DollarSign, Grid, List, LogIn, LogOut, User, Shield, Package, Eye, Copy, CheckCircle2, Layers, AlertCircle } from 'lucide-react';
 import ExhibitManager from './ExhibitManager';
 import ArtifactDetailModal from './ArtifactDetailModal';
 import DisplayGroupsManager from './DisplayGroupsManager';
@@ -55,6 +55,7 @@ const ComputingGalleryManager = () => {
   const [successModalData, setSuccessModalData] = useState({ name: '', action: '' });
   const [selectedArtifact, setSelectedArtifact] = useState(null);
   const [displayGroupsFromDB, setDisplayGroupsFromDB] = useState([]);
+  const [showValidationModal, setShowValidationModal] = useState(false);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -414,11 +415,11 @@ const getConditionColor = (condition) => {
   };
 
   // Update handleSave to use Firestore
-  const handleSave = async () => {
-    if (!formData.name || !formData.category || !formData.displayGroup) {
-      alert('Please fill in all required fields (Name, Category, Display Group)');
-      return;
-    }
+ const handleSave = async () => {
+  if (!formData.name || !formData.category || !formData.displayGroup) {
+    setShowValidationModal(true);
+    return;
+  }
     
     try {
       const artifactData = {
@@ -1341,6 +1342,32 @@ const getConditionColor = (condition) => {
             </div>
           </div>
         )}
+
+        {/* Validation Modal */}
+{showValidationModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="bg-white rounded-lg p-6 max-w-sm w-full animate-fade-in">
+      <div className="flex items-center justify-center w-12 h-12 mx-auto bg-red-100 rounded-full mb-4">
+        <AlertCircle className="w-6 h-6 text-red-600" />
+      </div>
+      <h3 className="text-lg font-semibold text-center mb-2">Missing Required Fields</h3>
+      <p className="text-gray-600 text-center">
+        Please fill in all required fields:
+      </p>
+      <ul className="mt-2 text-gray-600 text-center">
+        <li>• Name</li>
+        <li>• Category</li>
+        <li>• Display Group</li>
+      </ul>
+      <button
+        onClick={() => setShowValidationModal(false)}
+        className="w-full mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+      >
+        OK
+      </button>
+    </div>
+  </div>
+)}
 
         {/* Artifact Detail Modal */}
         {selectedArtifact && (
