@@ -49,6 +49,7 @@ const ComputingGalleryManager = () => {
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterGroup, setFilterGroup] = useState('all');
   const [viewMode, setViewMode] = useState('grid');
+  const [sortOrder, setSortOrder] = useState('none'); // New sort state: 'none', 'asc', 'desc'
   const [uploading, setUploading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successModalData, setSuccessModalData] = useState({ name: '', action: '' });
@@ -320,7 +321,7 @@ const getConditionColor = (condition) => {
     loadDisplayGroups();
   }, [activeTab]); // Reload when switching tabs
 
-  // Filter artifacts based on search and filters
+  // Filter and sort artifacts based on search, filters, and sort order
   useEffect(() => {
     let filtered = artifacts;
     
@@ -341,8 +342,22 @@ const getConditionColor = (condition) => {
       filtered = filtered.filter(a => a.displayGroup === filterGroup);
     }
     
+    // Sort by year if sort order is set
+    if (sortOrder !== 'none') {
+      filtered = [...filtered].sort((a, b) => {
+        const yearA = parseInt(a.year) || 0;
+        const yearB = parseInt(b.year) || 0;
+        
+        if (sortOrder === 'asc') {
+          return yearA - yearB;
+        } else {
+          return yearB - yearA;
+        }
+      });
+    }
+    
     setFilteredArtifacts(filtered);
-  }, [searchTerm, filterCategory, filterGroup, artifacts]);
+  }, [searchTerm, filterCategory, filterGroup, artifacts, sortOrder]);
 
   // Updated image upload handler using Firebase Storage
   const handleImageUpload = async (e) => {
@@ -716,6 +731,16 @@ const getConditionColor = (condition) => {
                     {displayGroups.map(group => (
                       <option key={group} value={group}>{group}</option>
                     ))}
+                  </select>
+                  
+                  <select
+                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={sortOrder}
+                    onChange={(e) => setSortOrder(e.target.value)}
+                  >
+                    <option value="none">Sort</option>
+                    <option value="asc">Year (Oldest First)</option>
+                    <option value="desc">Year (Newest First)</option>
                   </select>
                 </div>
                 
