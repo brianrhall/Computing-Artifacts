@@ -40,6 +40,11 @@ const ArtifactListView = ({
             </th>
             {(isAdmin === true && user !== null) && (
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Value
+              </th>
+            )}
+            {(isAdmin === true && user !== null) && (
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Status
               </th>
             )}
@@ -94,6 +99,15 @@ const ArtifactListView = ({
                   </span>
                 )}
               </td>
+              {(isAdmin === true && user !== null) && (
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {artifact.value && (
+                    <span className="font-medium text-green-600">
+                      ${artifact.value}
+                    </span>
+                  )}
+                </td>
+              )}
               {(isAdmin === true && user !== null) && (
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-2">

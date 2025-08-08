@@ -46,7 +46,7 @@ const useArtifacts = (user) => {
       condition: formData.condition || '',
       displayGroup: formData.displayGroup,
       location: formData.location || '',
-      estimatedValue: formData.estimatedValue || '',
+      value: formData.estimatedValue || '',  // Save as 'value' to match ArtifactDetailModal
       acquisitionDate: formData.acquisitionDate || '',
       donor: formData.donor || '',
       notes: formData.notes || '',
