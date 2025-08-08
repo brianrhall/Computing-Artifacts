@@ -36,7 +36,10 @@ const ComputingGalleryManager = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterGroup, setFilterGroup] = useState('all');
-  const [viewMode, setViewMode] = useState('grid');
+  const [viewMode, setViewMode] = useState(() => {
+    const savedViewMode = localStorage.getItem('galleryViewMode');
+    return savedViewMode === 'list' || savedViewMode === 'grid' ? savedViewMode : 'grid';
+  });
   const [sortOrder, setSortOrder] = useState('none');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showValidationModal, setShowValidationModal] = useState(false);
@@ -80,6 +83,10 @@ const ComputingGalleryManager = () => {
     taskNotes: '',
     images: []
   });
+
+  useEffect(() => {
+    localStorage.setItem('galleryViewMode', viewMode);
+  }, [viewMode]);
 
   // Dynamic display groups
   const displayGroups = displayGroupsFromDB.length > 0 

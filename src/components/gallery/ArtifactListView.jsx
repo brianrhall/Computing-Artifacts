@@ -19,37 +19,38 @@ const ArtifactListView = ({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-      <table className="min-w-full divide-y divide-gray-200">
+    <div className="bg-white rounded-lg shadow-sm">
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]">
               Name
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
               Category
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
               Manufacturer
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
               Year
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
               Condition
             </th>
             {(isAdmin === true && user !== null) && (
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
                 Value
               </th>
             )}
             {(isAdmin === true && user !== null) && (
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
                 Status
               </th>
             )}
             {(isAdmin === true && user !== null) && (
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
                 Actions
               </th>
             )}
@@ -62,35 +63,40 @@ const ArtifactListView = ({
               className="hover:bg-gray-50 cursor-pointer"
               onClick={() => onArtifactClick(artifact)}
             >
-              <td className="px-6 py-4 whitespace-nowrap">
+              <td className="px-4 py-4 whitespace-nowrap">
                 <div className="flex items-center">
                   {artifact.images && artifact.images.length > 0 ? (
                     <img 
+                      className="h-10 w-10 rounded-full object-cover" 
                       src={artifact.images[0]} 
-                      alt={artifact.name}
-                      className="w-10 h-10 rounded-lg object-cover mr-3"
+                      alt={artifact.name} 
                     />
                   ) : (
-                    <div className="w-10 h-10 bg-gray-200 rounded-lg mr-3 flex items-center justify-center">
+                    <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
                       <Camera className="w-5 h-5 text-gray-400" />
                     </div>
                   )}
-                  <div className="text-sm font-medium text-gray-900">{artifact.name}</div>
+                  <div className="ml-4">
+                    <div className="text-sm font-medium text-gray-900">{artifact.name}</div>
+                    {artifact.displayGroup && (
+                      <div className="text-sm text-gray-500">{artifact.displayGroup}</div>
+                    )}
+                  </div>
                 </div>
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                 {artifact.category}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                 {artifact.manufacturer}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                 {artifact.year}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap">
+              <td className="px-4 py-4 whitespace-nowrap">
                 {artifact.condition && (
-                  <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                    artifact.condition === 'Mint' || artifact.condition === 'Excellent' ? 'bg-green-100 text-green-800' :
+                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                    artifact.condition === 'Excellent' || artifact.condition === 'Mint' ? 'bg-green-100 text-green-800' :
                     artifact.condition === 'Good' || artifact.condition === 'Working' ? 'bg-blue-100 text-blue-800' :
                     artifact.condition === 'Fair' || artifact.condition === 'Restored' ? 'bg-yellow-100 text-yellow-800' :
                     'bg-red-100 text-red-800'
@@ -100,7 +106,7 @@ const ArtifactListView = ({
                 )}
               </td>
               {(isAdmin === true && user !== null) && (
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                   {artifact.value && (
                     <span className="font-medium text-green-600">
                       ${artifact.value}
@@ -109,39 +115,42 @@ const ArtifactListView = ({
                 </td>
               )}
               {(isAdmin === true && user !== null) && (
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-4 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-2">
-                    {getStatusIcon(artifact.status)}
-                    <span className="text-sm text-gray-500">{artifact.status}</span>
+                    {getStatusIcon(artifact.taskStatus)}
+                    <span className="text-sm text-gray-500">{artifact.taskStatus}</span>
                   </div>
                 </td>
               )}
               {(isAdmin === true && user !== null) && (
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEdit(artifact);
-                    }}
-                    className="text-blue-600 hover:text-blue-900 mr-4"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete(artifact.id);
-                    }}
-                    className="text-red-600 hover:text-red-900"
-                  >
-                    Delete
-                  </button>
+                <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEdit(artifact);
+                      }}
+                      className="text-blue-600 hover:text-blue-900"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(artifact.id);
+                      }}
+                      className="text-red-600 hover:text-red-900"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </td>
               )}
             </tr>
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 };
