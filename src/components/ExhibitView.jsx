@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
   Calendar, MapPin, User, ArrowLeft, Grid, List, 
-  Camera, Clock, DollarSign, Shield, Eye
+  Camera, Clock, DollarSign, Shield, Eye, Map, X
 } from 'lucide-react';
 import { db, auth } from '../firebase';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
@@ -221,7 +221,7 @@ const ExhibitView = () => {
           
           <p className="text-gray-700 text-lg mb-6">{exhibit.description}</p>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
             {(exhibit.startDate || exhibit.endDate) && (
               <div className="flex items-start gap-3">
                 <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
@@ -251,6 +251,23 @@ const ExhibitView = () => {
                 <div>
                   <p className="font-medium text-gray-900">Curated by</p>
                   <p className="text-gray-600">{exhibit.curator}</p>
+                </div>
+              </div>
+            )}
+            
+            {exhibit.galleryLayoutImage && (
+              <div className="flex items-start gap-3">
+                <Map className="w-5 h-5 text-gray-400 mt-0.5" />
+                <div>
+                  <p className="font-medium text-gray-900">Gallery Layout</p>
+                  <a 
+                    href={exhibit.galleryLayoutImage} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 underline"
+                  >
+                    View floor plan
+                  </a>
                 </div>
               </div>
             )}
@@ -285,7 +302,7 @@ const ExhibitView = () => {
                   onClick={() => setSelectedArtifact(artifact)}
                 >
                   {artifact.images && artifact.images.length > 0 ? (
-                    <div className="h-48 bg-gray-100 rounded-t-lg overflow-hidden">
+                    <div className="aspect-[3/4] bg-gray-100 rounded-t-lg overflow-hidden">
                       <img 
                         src={artifact.images[0]} 
                         alt={artifact.name}
@@ -293,17 +310,19 @@ const ExhibitView = () => {
                       />
                     </div>
                   ) : (
-                    <div className="h-48 bg-gray-100 rounded-t-lg flex items-center justify-center">
+                    <div className="aspect-[3/4] bg-gray-100 rounded-t-lg flex items-center justify-center">
                       <Camera className="w-12 h-12 text-gray-300" />
                     </div>
                   )}
                   
                   <div className="p-4">
                     <h3 className="font-semibold text-gray-900 mb-1">{artifact.name}</h3>
-                    <p className="text-sm text-gray-600 mb-2">
-                      {artifact.manufacturer} {artifact.model && `- ${artifact.model}`}
-                    </p>
-                    <p className="text-sm text-gray-500">{artifact.year}</p>
+                    {artifact.manufacturer && (
+                      <p className="text-sm text-gray-600 mb-1">{artifact.manufacturer}</p>
+                    )}
+                    {artifact.year && (
+                      <p className="text-sm text-gray-500">{artifact.year}</p>
+                    )}
                   </div>
                 </div>
               ))}
@@ -313,40 +332,45 @@ const ExhibitView = () => {
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="text-left p-4 font-medium text-gray-900">Artifact</th>
-                    <th className="text-left p-4 font-medium text-gray-900">Manufacturer</th>
-                    <th className="text-left p-4 font-medium text-gray-900">Model</th>
-                    <th className="text-left p-4 font-medium text-gray-900">Year</th>
-                    <th className="text-left p-4 font-medium text-gray-900">Category</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Artifact</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Category</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Year</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Condition</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Location</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y">
                   {artifacts.map((artifact) => (
                     <tr 
                       key={artifact.id} 
-                      className="border-t hover:bg-gray-50 cursor-pointer"
+                      className="hover:bg-gray-50 cursor-pointer"
                       onClick={() => setSelectedArtifact(artifact)}
                     >
-                      <td className="p-4">
+                      <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           {artifact.images && artifact.images.length > 0 ? (
                             <img 
                               src={artifact.images[0]} 
                               alt={artifact.name}
-                              className="w-10 h-10 object-cover rounded"
+                              className="w-12 h-12 object-cover rounded"
                             />
                           ) : (
-                            <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center">
+                            <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center">
                               <Camera className="w-5 h-5 text-gray-300" />
                             </div>
                           )}
-                          <span className="font-medium text-gray-900">{artifact.name}</span>
+                          <div>
+                            <p className="font-medium text-gray-900">{artifact.name}</p>
+                            {artifact.manufacturer && (
+                              <p className="text-sm text-gray-600">{artifact.manufacturer}</p>
+                            )}
+                          </div>
                         </div>
                       </td>
-                      <td className="p-4 text-gray-600">{artifact.manufacturer || '-'}</td>
-                      <td className="p-4 text-gray-600">{artifact.model || '-'}</td>
-                      <td className="p-4 text-gray-600">{artifact.year || '-'}</td>
-                      <td className="p-4 text-gray-600">{artifact.category || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{artifact.category || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{artifact.year || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{artifact.condition || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{artifact.location || '-'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -355,111 +379,89 @@ const ExhibitView = () => {
           )}
         </div>
       </div>
-      
-      {/* Artifact Modal */}
+
+      {/* Artifact Detail Modal */}
       {selectedArtifact && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-start mb-4">
-                <h3 className="text-2xl font-bold text-gray-900">{selectedArtifact.name}</h3>
-                <button 
-                  onClick={() => setSelectedArtifact(null)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  ×
-                </button>
-              </div>
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          onClick={() => setSelectedArtifact(null)}
+        >
+          <div 
+            className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="relative">
+              <button
+                onClick={() => setSelectedArtifact(null)}
+                className="absolute top-4 right-4 bg-white rounded-full p-2 shadow-lg z-10 hover:bg-gray-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
               
+              {/* Image Gallery */}
               {selectedArtifact.images && selectedArtifact.images.length > 0 && (
-                <div className="mb-6">
+                <div className="aspect-[16/9] bg-gray-100 overflow-hidden">
                   <img 
                     src={selectedArtifact.images[0]} 
                     alt={selectedArtifact.name}
-                    className="w-full max-h-96 object-contain rounded-lg"
+                    className="w-full h-full object-cover"
                   />
-                  {selectedArtifact.images.length > 1 && (
-                    <div className="mt-2 grid grid-cols-4 gap-2">
-                      {selectedArtifact.images.slice(1).map((img, idx) => (
-                        <img 
-                          key={idx}
-                          src={img} 
-                          alt={`${selectedArtifact.name} ${idx + 2}`}
-                          className="w-full h-20 object-cover rounded"
-                        />
-                      ))}
+                </div>
+              )}
+              
+              <div className="p-6">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  {selectedArtifact.name}
+                </h2>
+                
+                {selectedArtifact.manufacturer && (
+                  <p className="text-lg text-gray-600 mb-4">
+                    by {selectedArtifact.manufacturer}
+                  </p>
+                )}
+                
+                {selectedArtifact.description && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Description</h3>
+                    <p className="text-gray-700">{selectedArtifact.description}</p>
+                  </div>
+                )}
+                
+                {selectedArtifact.historicalContext && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Historical Context</h3>
+                    <p className="text-gray-700">{selectedArtifact.historicalContext}</p>
+                  </div>
+                )}
+                
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  {selectedArtifact.condition && (
+                    <div>
+                      <p className="text-gray-500">Condition</p>
+                      <p className="font-medium">{selectedArtifact.condition}</p>
+                    </div>
+                  )}
+                  {selectedArtifact.location && (
+                    <div>
+                      <p className="text-gray-500">Location</p>
+                      <p className="font-medium">{selectedArtifact.location}</p>
+                    </div>
+                  )}
+                  {selectedArtifact.acquisitionDate && (
+                    <div>
+                      <p className="text-gray-500">Acquired</p>
+                      <p className="font-medium">
+                        {new Date(selectedArtifact.acquisitionDate).toLocaleDateString()}
+                      </p>
+                    </div>
+                  )}
+                  {selectedArtifact.value && (
+                    <div>
+                      <p className="text-gray-500">Value</p>
+                      <p className="font-medium">${selectedArtifact.value.toLocaleString()}</p>
                     </div>
                   )}
                 </div>
-              )}
-              
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div>
-                  <p className="text-sm text-gray-500">Manufacturer</p>
-                  <p className="font-medium">{selectedArtifact.manufacturer || 'Unknown'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Model</p>
-                  <p className="font-medium">{selectedArtifact.model || 'Unknown'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Year</p>
-                  <p className="font-medium">{selectedArtifact.year || 'Unknown'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Category</p>
-                  <p className="font-medium">{selectedArtifact.category || 'Unknown'}</p>
-                </div>
-              </div>
-              
-              {selectedArtifact.description && (
-                <div className="mb-4">
-                  <h4 className="font-medium text-gray-900 mb-2">Description</h4>
-                  <p className="text-gray-700">{selectedArtifact.description}</p>
-                </div>
-              )}
-              
-              {selectedArtifact.technicalDetails && (
-                <div className="mb-4">
-                  <h4 className="font-medium text-gray-900 mb-2">Technical Details</h4>
-                  <p className="text-gray-700">{selectedArtifact.technicalDetails}</p>
-                </div>
-              )}
-              
-              {selectedArtifact.historicalContext && (
-                <div className="mb-4">
-                  <h4 className="font-medium text-gray-900 mb-2">Historical Context</h4>
-                  <p className="text-gray-700">{selectedArtifact.historicalContext}</p>
-                </div>
-              )}
-              
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                {selectedArtifact.condition && (
-                  <div>
-                    <p className="text-gray-500">Condition</p>
-                    <p className="font-medium">{selectedArtifact.condition}</p>
-                  </div>
-                )}
-                {selectedArtifact.location && (
-                  <div>
-                    <p className="text-gray-500">Location</p>
-                    <p className="font-medium">{selectedArtifact.location}</p>
-                  </div>
-                )}
-                {selectedArtifact.acquisitionDate && (
-                  <div>
-                    <p className="text-gray-500">Acquired</p>
-                    <p className="font-medium">
-                      {new Date(selectedArtifact.acquisitionDate).toLocaleDateString()}
-                    </p>
-                  </div>
-                )}
-                {selectedArtifact.value && (
-                  <div>
-                    <p className="text-gray-500">Value</p>
-                    <p className="font-medium">${selectedArtifact.value.toLocaleString()}</p>
-                  </div>
-                )}
               </div>
             </div>
           </div>

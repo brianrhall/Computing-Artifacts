@@ -19,6 +19,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
   const [showArtifactSelector, setShowArtifactSelector] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [uploadingGalleryLayout, setUploadingGalleryLayout] = useState(false);
   const [viewMode, setViewMode] = useState('grid');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const navigate = useNavigate();
@@ -31,6 +32,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
     location: '',
     curator: '',
     headerImage: '',
+    galleryLayoutImage: '',
     artifactIds: [],
     featured: false,
     published: true
@@ -77,6 +79,29 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
       alert('Error uploading image. Please try again.');
     } finally {
       setUploading(false);
+    }
+  };
+
+  // Handle gallery layout image upload
+  const handleGalleryLayoutUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    setUploadingGalleryLayout(true);
+    
+    try {
+      const timestamp = Date.now();
+      const filename = `exhibits/layouts/${timestamp}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+      const storageRef = ref(storage, filename);
+      const snapshot = await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      
+      setFormData(prev => ({ ...prev, galleryLayoutImage: downloadURL }));
+    } catch (error) {
+      console.error('Error uploading gallery layout image:', error);
+      alert('Error uploading gallery layout image. Please try again.');
+    } finally {
+      setUploadingGalleryLayout(false);
     }
   };
 
@@ -129,7 +154,17 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
             const imageRef = ref(storage, exhibit.headerImage);
             await deleteObject(imageRef);
           } catch (error) {
-            console.error('Error deleting image:', error);
+            console.error('Error deleting header image:', error);
+          }
+        }
+        
+        // Delete gallery layout image if exists
+        if (exhibit?.galleryLayoutImage) {
+          try {
+            const imageRef = ref(storage, exhibit.galleryLayoutImage);
+            await deleteObject(imageRef);
+          } catch (error) {
+            console.error('Error deleting gallery layout image:', error);
           }
         }
         
@@ -152,6 +187,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
       location: exhibit.location || '',
       curator: exhibit.curator || '',
       headerImage: exhibit.headerImage || '',
+      galleryLayoutImage: exhibit.galleryLayoutImage || '',
       artifactIds: exhibit.artifactIds || [],
       featured: exhibit.featured || false,
       published: exhibit.published !== undefined ? exhibit.published : true
@@ -175,6 +211,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
       location: '',
       curator: '',
       headerImage: '',
+      galleryLayoutImage: '',
       artifactIds: [],
       featured: false,
       published: true
@@ -278,7 +315,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                   )}
                   <div className="flex items-center gap-2">
                     <Grid className="w-4 h-4" />
-                    <span>{exhibit.artifactIds?.length || 0} artifacts</span>
+                    <span>{selectedArtifacts.find(exhibit => exhibit.id === exhibit.id)?.artifactIds?.length || 0} artifacts</span>
                   </div>
                 </div>
                 
@@ -287,24 +324,22 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                     onClick={() => navigate(`/exhibit/${exhibit.id}`)}
                     className="flex-1 px-3 py-1 bg-gray-50 text-gray-600 rounded hover:bg-gray-100 transition-colors flex items-center justify-center gap-1"
                   >
-                  <Eye className="w-4 h-4" />
+                    <Eye className="w-4 h-4" />
                     View
                   </button>
                   {isAdmin && (
                     <>
                       <button
                         onClick={() => handleEdit(exhibit)}
-                        className="flex-1 px-3 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors flex items-center justify-center gap-1"
+                        className="px-3 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors"
                       >
                         <Edit2 className="w-4 h-4" />
-                        Edit
                       </button>
                       <button
                         onClick={() => handleDelete(exhibit.id)}
-                        className="flex-1 px-3 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors flex items-center justify-center gap-1"
+                        className="px-3 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
-                        Delete
                       </button>
                     </>
                   )}
@@ -316,10 +351,10 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
       ) : (
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Name</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Dates</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Exhibit</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Date Range</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Location</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Artifacts</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Status</th>
@@ -330,27 +365,33 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
               {exhibits.map(exhibit => (
                 <tr key={exhibit.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
-                    <div>
-                      <div className="font-medium text-gray-900">{exhibit.name}</div>
-                      <div className="text-sm text-gray-500 line-clamp-1">{exhibit.description}</div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-16 h-9 bg-gray-100 rounded overflow-hidden flex-shrink-0">
+                        {exhibit.headerImage ? (
+                          <img src={exhibit.headerImage} alt={exhibit.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="flex items-center justify-center h-full">
+                            <ImageIcon className="w-4 h-4 text-gray-300" />
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{exhibit.name}</p>
+                        {exhibit.featured && (
+                          <span className="text-xs text-yellow-600">Featured</span>
+                        )}
+                      </div>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">
-                    {exhibit.startDate && new Date(exhibit.startDate).toLocaleDateString()}
+                    {exhibit.startDate ? new Date(exhibit.startDate).toLocaleDateString() : 'Ongoing'}
                     {exhibit.endDate && ` - ${new Date(exhibit.endDate).toLocaleDateString()}`}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{exhibit.location}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
-                    {exhibit.artifactIds?.length || 0}
-                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{exhibit.location || '-'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{exhibit.artifactIds?.length || 0}</td>
                   <td className="px-4 py-3">
-                    <div className="flex gap-2">
-                      {exhibit.featured && (
-                        <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded">
-                          Featured
-                        </span>
-                      )}
-                      <span className={`px-2 py-1 text-xs font-medium rounded ${
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs px-2 py-1 rounded-full ${
                         exhibit.published 
                           ? 'bg-green-100 text-green-800' 
                           : 'bg-gray-100 text-gray-800'
@@ -466,6 +507,34 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                       </div>
                     )}
                   </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Gallery Layout Image (optional)
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleGalleryLayoutUpload}
+                      disabled={uploadingGalleryLayout}
+                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                    />
+                    {uploadingGalleryLayout && (
+                      <p className="text-sm text-blue-600 mt-1">Uploading layout image...</p>
+                    )}
+                    {formData.galleryLayoutImage && (
+                      <div className="mt-2">
+                        <img 
+                          src={formData.galleryLayoutImage} 
+                          alt="Gallery Layout" 
+                          className="w-full max-w-md h-48 object-cover rounded"
+                        />
+                      </div>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">
+                      Upload a floor plan or layout diagram showing where this exhibit will be displayed
+                    </p>
+                  </div>
                 </div>
               </div>
               
@@ -504,9 +573,9 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                     <input
                       type="text"
                       className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="e.g., Main Gallery"
                       value={formData.location}
                       onChange={(e) => setFormData({...formData, location: e.target.value})}
+                      placeholder="e.g., Main Gallery Hall"
                     />
                   </div>
                   
@@ -522,118 +591,102 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                     />
                   </div>
                 </div>
-                
-                <div className="mt-4 space-y-2">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      className="rounded text-blue-600"
-                      checked={formData.featured}
-                      onChange={(e) => setFormData({...formData, featured: e.target.checked})}
-                    />
-                    <span className="text-sm font-medium text-gray-700">Featured Exhibit</span>
-                  </label>
-                  
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      className="rounded text-blue-600"
-                      checked={formData.published}
-                      onChange={(e) => setFormData({...formData, published: e.target.checked})}
-                    />
-                    <span className="text-sm font-medium text-gray-700">Published (visible to visitors)</span>
-                  </label>
-                </div>
               </div>
               
-              {/* Artifacts Selection */}
+              {/* Artifacts */}
               <div>
                 <h3 className="text-lg font-medium text-gray-900 mb-4">
                   Artifacts ({selectedArtifacts.length} selected)
                 </h3>
-                
-                {selectedArtifacts.length > 0 && (
-                  <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-2">
-                    {selectedArtifacts.map(artifact => (
-                      <div key={artifact.id} className="relative group">
-                        <img 
-                          src={artifact.images?.[0] || '/placeholder.jpg'} 
-                          alt={artifact.name}
-                          className="w-full h-24 object-cover rounded"
-                        />
-                        <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center">
-                          <button
-                            onClick={() => toggleArtifact(artifact)}
-                            className="text-white hover:text-red-300"
-                          >
-                            <X className="w-6 h-6" />
-                          </button>
-                        </div>
-                        <p className="text-xs mt-1 truncate">{artifact.name}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                
                 <button
-                  type="button"
                   onClick={() => setShowArtifactSelector(!showArtifactSelector)}
                   className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                 >
                   {showArtifactSelector ? 'Hide' : 'Select'} Artifacts
                 </button>
                 
+                {selectedArtifacts.length > 0 && (
+                  <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {selectedArtifacts.map(artifact => (
+                      <div key={artifact.id} className="bg-gray-50 px-3 py-2 rounded-lg flex items-center justify-between">
+                        <span className="text-sm">{artifact.name}</span>
+                        <button
+                          onClick={() => toggleArtifact(artifact)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
                 {showArtifactSelector && (
-                  <div className="mt-4 border rounded-lg p-4 max-h-64 overflow-y-auto">
+                  <div className="mt-4 border rounded-lg p-4">
                     <input
                       type="text"
                       placeholder="Search artifacts..."
-                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+                      className="w-full px-3 py-2 border rounded-lg mb-4"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
-                    
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {filteredArtifacts.map(artifact => {
-                        const isSelected = selectedArtifacts.find(a => a.id === artifact.id);
-                        return (
-                          <div
-                            key={artifact.id}
-                            onClick={() => toggleArtifact(artifact)}
-                            className={`p-2 border rounded cursor-pointer transition-colors ${
-                              isSelected ? 'bg-blue-50 border-blue-500' : 'hover:bg-gray-50'
-                            }`}
-                          >
-                            <img 
-                              src={artifact.images?.[0] || '/placeholder.jpg'} 
-                              alt={artifact.name}
-                              className="w-full h-20 object-cover rounded mb-1"
-                            />
-                            <p className="text-xs font-medium truncate">{artifact.name}</p>
-                            <p className="text-xs text-gray-500 truncate">{artifact.category}</p>
-                          </div>
-                        );
-                      })}
+                    <div className="max-h-64 overflow-y-auto space-y-2">
+                      {filteredArtifacts.map(artifact => (
+                        <label key={artifact.id} className="flex items-center gap-2 hover:bg-gray-50 p-2 rounded cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedArtifacts.some(a => a.id === artifact.id)}
+                            onChange={() => toggleArtifact(artifact)}
+                            className="rounded"
+                          />
+                          <span className="text-sm">{artifact.name}</span>
+                          <span className="text-xs text-gray-500">({artifact.category})</span>
+                        </label>
+                      ))}
                     </div>
                   </div>
                 )}
               </div>
-            </div>
-            
-            {/* Action Buttons */}
-            <div className="sticky bottom-0 bg-white border-t px-6 py-4">
-              <div className="flex justify-end gap-3">
+              
+              {/* Settings */}
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Settings</h3>
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.featured}
+                      onChange={(e) => setFormData({...formData, featured: e.target.checked})}
+                      className="rounded"
+                    />
+                    <span className="text-sm">Feature this exhibit on the homepage</span>
+                  </label>
+                  
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.published}
+                      onChange={(e) => setFormData({...formData, published: e.target.checked})}
+                      className="rounded"
+                    />
+                    <span className="text-sm">Publish exhibit (make visible to all visitors)</span>
+                  </label>
+                </div>
+              </div>
+              
+              {/* Actions */}
+              <div className="flex gap-4 pt-4 border-t">
                 <button
                   onClick={resetForm}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSave}
-                  disabled={uploading}
-                  className={`px-4 py-2 ${
-                    uploading 
+                  disabled={!formData.name || !formData.description}
+                  className={`px-6 py-2 ${
+                    !formData.name || !formData.description 
                       ? 'bg-gray-400 cursor-not-allowed' 
                       : 'bg-blue-600 hover:bg-blue-700'
                   } text-white rounded-lg transition-colors flex items-center gap-2`}
