@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, Edit2, Trash2, X, Save, Upload, Image as ImageIcon, 
-  Grid, List, Eye, Calendar, MapPin, Users, CheckCircle
+  Grid, List, Eye, Calendar, MapPin, Users, CheckCircle, DollarSign
 } from 'lucide-react';
 import { db, storage } from '../firebase';
 import { 
@@ -22,6 +22,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
   const [uploadingGalleryLayout, setUploadingGalleryLayout] = useState(false);
   const [viewMode, setViewMode] = useState('grid');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successAction, setSuccessAction] = useState('created');
   const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
@@ -120,6 +121,9 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
         updatedBy: user.uid
       };
       
+      // Capture whether this is an update or create before resetting
+      const isUpdate = !!editingId;
+      
       if (editingId) {
         await updateDoc(doc(db, 'exhibits', editingId), exhibitData);
       } else {
@@ -129,6 +133,9 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
       }
       
       await loadExhibits();
+      
+      // Store the action type before resetting form
+      setSuccessAction(isUpdate ? 'updated' : 'created');
       resetForm();
       setShowSuccessModal(true);
       
@@ -146,28 +153,6 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this exhibit?')) {
       try {
-        const exhibit = exhibits.find(e => e.id === id);
-        
-        // Delete header image if exists
-        if (exhibit?.headerImage) {
-          try {
-            const imageRef = ref(storage, exhibit.headerImage);
-            await deleteObject(imageRef);
-          } catch (error) {
-            console.error('Error deleting header image:', error);
-          }
-        }
-        
-        // Delete gallery layout image if exists
-        if (exhibit?.galleryLayoutImage) {
-          try {
-            const imageRef = ref(storage, exhibit.galleryLayoutImage);
-            await deleteObject(imageRef);
-          } catch (error) {
-            console.error('Error deleting gallery layout image:', error);
-          }
-        }
-        
         await deleteDoc(doc(db, 'exhibits', id));
         await loadExhibits();
       } catch (error) {
@@ -239,8 +224,66 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
     artifact.category?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Calculate total value of exhibit artifacts
+  const calculateExhibitValue = (artifactIds) => {
+    if (!artifactIds || artifactIds.length === 0) return 0;
+    
+    return artifactIds.reduce((total, artifactId) => {
+      const artifact = artifacts.find(a => a.id === artifactId);
+      if (artifact && artifact.value) {
+        // Handle both string and number values
+        const value = typeof artifact.value === 'string' 
+          ? parseFloat(artifact.value.replace(/[^0-9.-]+/g, '')) 
+          : artifact.value;
+        return total + (isNaN(value) ? 0 : value);
+      }
+      return total;
+    }, 0);
+  };
+
   return (
     <div className="space-y-6">
+      {/* Summary Stats for Admins */}
+      {isAdmin && exhibits.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Exhibits</p>
+                <p className="text-2xl font-semibold text-gray-900">{exhibits.length}</p>
+              </div>
+              <Grid className="w-8 h-8 text-gray-400" />
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Artifacts</p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {exhibits.reduce((total, exhibit) => total + (exhibit.artifactIds?.length || 0), 0)}
+                </p>
+              </div>
+              <Users className="w-8 h-8 text-gray-400" />
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Collection Value</p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  ${exhibits.reduce((total, exhibit) => 
+                    total + calculateExhibitValue(exhibit.artifactIds), 0
+                  ).toLocaleString()}
+                </p>
+              </div>
+              <DollarSign className="w-8 h-8 text-gray-400" />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -314,9 +357,15 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                     </div>
                   )}
                   <div className="flex items-center gap-2">
-                    <Grid className="w-4 h-4" />
-                    <span>{selectedArtifacts.find(exhibit => exhibit.id === exhibit.id)?.artifactIds?.length || 0} artifacts</span>
+                    <Users className="w-4 h-4" />
+                    <span>{exhibit.artifactIds?.length || 0} artifacts</span>
                   </div>
+                  {isAdmin && exhibit.artifactIds?.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="w-4 h-4" />
+                      <span>${calculateExhibitValue(exhibit.artifactIds).toLocaleString()}</span>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="flex gap-2">
@@ -333,13 +382,13 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                         onClick={() => handleEdit(exhibit)}
                         className="px-3 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors"
                       >
-                        <Edit2 className="w-4 h-4" />
+                        Edit
                       </button>
                       <button
                         onClick={() => handleDelete(exhibit.id)}
                         className="px-3 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        Delete
                       </button>
                     </>
                   )}
@@ -351,44 +400,38 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
       ) : (
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           <table className="w-full">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50 border-b">
               <tr>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Exhibit</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Date Range</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Name</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Dates</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Location</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Artifacts</th>
+                {isAdmin && <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Total Value</th>}
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Status</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody>
               {exhibits.map(exhibit => (
-                <tr key={exhibit.id} className="hover:bg-gray-50">
+                <tr key={exhibit.id} className="border-b hover:bg-gray-50">
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-16 h-9 bg-gray-100 rounded overflow-hidden flex-shrink-0">
-                        {exhibit.headerImage ? (
-                          <img src={exhibit.headerImage} alt={exhibit.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="flex items-center justify-center h-full">
-                            <ImageIcon className="w-4 h-4 text-gray-300" />
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{exhibit.name}</p>
-                        {exhibit.featured && (
-                          <span className="text-xs text-yellow-600">Featured</span>
-                        )}
-                      </div>
+                    <div>
+                      <div className="font-medium text-gray-900">{exhibit.name}</div>
+                      <div className="text-sm text-gray-500 line-clamp-1">{exhibit.description}</div>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">
-                    {exhibit.startDate ? new Date(exhibit.startDate).toLocaleDateString() : 'Ongoing'}
+                    {exhibit.startDate ? 
+                      new Date(exhibit.startDate).toLocaleDateString() : 'Ongoing'}
                     {exhibit.endDate && ` - ${new Date(exhibit.endDate).toLocaleDateString()}`}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">{exhibit.location || '-'}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{exhibit.artifactIds?.length || 0}</td>
+                  {isAdmin && (
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                      ${calculateExhibitValue(exhibit.artifactIds).toLocaleString()}
+                    </td>
+                  )}
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <span className={`text-xs px-2 py-1 rounded-full ${
@@ -447,174 +490,213 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                 </h2>
                 <button
                   onClick={resetForm}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                 >
-                  <X className="w-6 h-6" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
             
             <div className="p-6 space-y-6">
-              {/* Basic Information */}
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Basic Information</h3>
-                <div className="space-y-4">
+              {/* Basic Info */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter exhibit name"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Describe the exhibit"
+                  />
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Exhibit Name *
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                    <input
+                      type="date"
+                      value={formData.startDate}
+                      onChange={(e) => setFormData({...formData, startDate: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                    <input
+                      type="date"
+                      value={formData.endDate}
+                      onChange={(e) => setFormData({...formData, endDate: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
                     <input
                       type="text"
-                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
+                      value={formData.location}
+                      onChange={(e) => setFormData({...formData, location: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Exhibition location"
                     />
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Description *
-                    </label>
-                    <textarea
-                      rows="3"
-                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={formData.description}
-                      onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Header Image (16:9 aspect ratio recommended)
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Curator</label>
                     <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      disabled={uploading}
-                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                      type="text"
+                      value={formData.curator}
+                      onChange={(e) => setFormData({...formData, curator: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Curator name"
                     />
-                    {uploading && (
-                      <p className="text-sm text-blue-600 mt-1">Uploading image...</p>
-                    )}
-                    {formData.headerImage && (
-                      <div className="mt-2">
-                        <img 
-                          src={formData.headerImage} 
-                          alt="Header" 
-                          className="w-full max-w-md h-48 object-cover rounded aspect-[16/9]"
-                        />
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Gallery Layout Image (optional)
-                    </label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleGalleryLayoutUpload}
-                      disabled={uploadingGalleryLayout}
-                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                    />
-                    {uploadingGalleryLayout && (
-                      <p className="text-sm text-blue-600 mt-1">Uploading layout image...</p>
-                    )}
-                    {formData.galleryLayoutImage && (
-                      <div className="mt-2">
-                        <img 
-                          src={formData.galleryLayoutImage} 
-                          alt="Gallery Layout" 
-                          className="w-full max-w-md h-48 object-cover rounded"
-                        />
-                      </div>
-                    )}
-                    <p className="text-xs text-gray-500 mt-1">
-                      Upload a floor plan or layout diagram showing where this exhibit will be displayed
-                    </p>
                   </div>
                 </div>
               </div>
               
-              {/* Exhibit Details */}
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Exhibit Details</h3>
-                <div className="grid grid-cols-2 gap-4">
+              {/* Images */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900">Images</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Start Date
-                    </label>
-                    <input
-                      type="date"
-                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={formData.startDate}
-                      onChange={(e) => setFormData({...formData, startDate: e.target.value})}
-                    />
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Header Image</label>
+                    <div className="space-y-2">
+                      {formData.headerImage ? (
+                        <div className="relative">
+                          <img
+                            src={formData.headerImage}
+                            alt="Header"
+                            className="w-full h-40 object-cover rounded-lg"
+                          />
+                          <button
+                            onClick={() => setFormData({...formData, headerImage: ''})}
+                            className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="w-full h-40 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-gray-400">
+                          <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                          <span className="text-sm text-gray-500">
+                            {uploading ? 'Uploading...' : 'Click to upload'}
+                          </span>
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                            disabled={uploading}
+                          />
+                        </label>
+                      )}
+                    </div>
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      End Date
-                    </label>
-                    <input
-                      type="date"
-                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={formData.endDate}
-                      onChange={(e) => setFormData({...formData, endDate: e.target.value})}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Location
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={formData.location}
-                      onChange={(e) => setFormData({...formData, location: e.target.value})}
-                      placeholder="e.g., Main Gallery Hall"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Curator
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={formData.curator}
-                      onChange={(e) => setFormData({...formData, curator: e.target.value})}
-                    />
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Gallery Layout Image</label>
+                    <div className="space-y-2">
+                      {formData.galleryLayoutImage ? (
+                        <div className="relative">
+                          <img
+                            src={formData.galleryLayoutImage}
+                            alt="Gallery Layout"
+                            className="w-full h-40 object-cover rounded-lg"
+                          />
+                          <button
+                            onClick={() => setFormData({...formData, galleryLayoutImage: ''})}
+                            className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="w-full h-40 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-gray-400">
+                          <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                          <span className="text-sm text-gray-500">
+                            {uploadingGalleryLayout ? 'Uploading...' : 'Click to upload'}
+                          </span>
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept="image/*"
+                            onChange={handleGalleryLayoutUpload}
+                            disabled={uploadingGalleryLayout}
+                          />
+                        </label>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
               
               {/* Artifacts */}
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">
-                  Artifacts ({selectedArtifacts.length} selected)
-                </h3>
-                <button
-                  onClick={() => setShowArtifactSelector(!showArtifactSelector)}
-                  className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                >
-                  {showArtifactSelector ? 'Hide' : 'Select'} Artifacts
-                </button>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Artifacts</h3>
+                    {isAdmin && selectedArtifacts.length > 0 && (
+                      <p className="text-sm text-gray-600 mt-1">
+                        Total value: ${selectedArtifacts.reduce((total, artifact) => {
+                          const value = artifact.value ? 
+                            (typeof artifact.value === 'string' 
+                              ? parseFloat(artifact.value.replace(/[^0-9.-]+/g, '')) 
+                              : artifact.value) 
+                            : 0;
+                          return total + (isNaN(value) ? 0 : value);
+                        }, 0).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setShowArtifactSelector(!showArtifactSelector)}
+                    className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Artifacts
+                  </button>
+                </div>
                 
                 {selectedArtifacts.length > 0 && (
-                  <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                     {selectedArtifacts.map(artifact => (
-                      <div key={artifact.id} className="bg-gray-50 px-3 py-2 rounded-lg flex items-center justify-between">
-                        <span className="text-sm">{artifact.name}</span>
+                      <div key={artifact.id} className="relative bg-gray-50 rounded-lg p-3">
+                        {artifact.images?.[0] && (
+                          <img
+                            src={artifact.images[0]}
+                            alt={artifact.name}
+                            className="w-full h-24 object-cover rounded mb-2"
+                          />
+                        )}
+                        <p className="text-sm font-medium text-gray-900 line-clamp-1">{artifact.name}</p>
+                        <p className="text-xs text-gray-500">{artifact.manufacturer}</p>
                         <button
                           onClick={() => toggleArtifact(artifact)}
-                          className="text-red-600 hover:text-red-800"
+                          className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
                         >
-                          <X className="w-4 h-4" />
+                          <X className="w-3 h-3" />
                         </button>
                       </div>
                     ))}
@@ -622,25 +704,33 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                 )}
                 
                 {showArtifactSelector && (
-                  <div className="mt-4 border rounded-lg p-4">
+                  <div className="border border-gray-200 rounded-lg p-4 space-y-3">
                     <input
                       type="text"
                       placeholder="Search artifacts..."
-                      className="w-full px-3 py-2 border rounded-lg mb-4"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
-                    <div className="max-h-64 overflow-y-auto space-y-2">
+                    
+                    <div className="max-h-60 overflow-y-auto space-y-2">
                       {filteredArtifacts.map(artifact => (
-                        <label key={artifact.id} className="flex items-center gap-2 hover:bg-gray-50 p-2 rounded cursor-pointer">
+                        <label
+                          key={artifact.id}
+                          className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer"
+                        >
                           <input
                             type="checkbox"
                             checked={selectedArtifacts.some(a => a.id === artifact.id)}
                             onChange={() => toggleArtifact(artifact)}
                             className="rounded"
                           />
-                          <span className="text-sm">{artifact.name}</span>
-                          <span className="text-xs text-gray-500">({artifact.category})</span>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-gray-900">{artifact.name}</p>
+                            <p className="text-xs text-gray-500">
+                              {artifact.manufacturer} • {artifact.category}
+                            </p>
+                          </div>
                         </label>
                       ))}
                     </div>
@@ -649,8 +739,9 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
               </div>
               
               {/* Settings */}
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Settings</h3>
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900">Settings</h3>
+                
                 <div className="space-y-3">
                   <label className="flex items-center gap-2">
                     <input
@@ -710,7 +801,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                 Success!
               </h3>
               <p className="text-gray-600">
-                Your exhibit has been {editingId ? 'updated' : 'created'} successfully.
+                Your exhibit has been {successAction} successfully.
               </p>
             </div>
           </div>
