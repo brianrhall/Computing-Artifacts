@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, signOut } from 'firebase/auth';
 import { auth, googleProvider, db } from '../../firebase';
-import { doc, getDoc, setDoc, collection, getDocs, query, orderBy, where, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, query, orderBy, where, addDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 
 // Components
 import GalleryHeader from './GalleryHeader';
@@ -19,6 +19,7 @@ import ValidationModal from '../shared/ValidationModal';
 import ArtifactDetailModal from '../artifacts/ArtifactDetailModal';
 import ExhibitManager from '../ExhibitManager';
 import DisplayGroupsManager from '../DisplayGroupsManager';
+import AuctionManager from '../auctions/AuctionManager';
 
 // Hooks
 import useArtifacts from '../../hooks/useArtifacts';
@@ -154,7 +155,7 @@ const ComputingGalleryManager = () => {
     const tabParam = params.get('tab');
     
     // Set active tab based on URL parameter
-    if (tabParam && ['artifacts', 'exhibits', 'displayGroups'].includes(tabParam)) {
+    if (tabParam && ['artifacts', 'exhibits', 'displayGroups', 'auctions'].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [location.search]);
@@ -327,87 +328,249 @@ const ComputingGalleryManager = () => {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto p-6">
-        <GalleryHeader 
-          user={user} 
-          isAdmin={isAdmin}
-          onSignIn={() => setShowLoginForm(true)}
-          onSignOut={handleSignOut}
-        />
-        
-        <GalleryTabs 
-          activeTab={activeTab} 
-          setActiveTab={setActiveTab} 
-          isAdmin={isAdmin} 
-        />
+  const handleAddGroup = async (groupData) => {
+  try {
+    await addDoc(collection(db, 'displayGroups'), {
+      ...groupData,
+      createdAt: serverTimestamp(),
+      createdBy: user.uid
+    });
+    // Reload display groups
+    const q = query(collection(db, 'displayGroups'), orderBy('order', 'asc'));
+    const snapshot = await getDocs(q);
+    const groups = [];
+    snapshot.forEach(doc => {
+      groups.push({ id: doc.id, ...doc.data() });
+    });
+    setDisplayGroupsFromDB(groups);
+  } catch (error) {
+    console.error('Error adding display group:', error);
+    alert('Error adding display group. Please try again.');
+  }
+};
 
-        {activeTab === 'artifacts' ? (
-          <>
-            <FilterControls
-              searchTerm={searchTerm}
-              setSearchTerm={setSearchTerm}
-              filterCategory={filterCategory}
-              setFilterCategory={setFilterCategory}
-              filterGroup={filterGroup}
-              setFilterGroup={setFilterGroup}
-              sortOrder={sortOrder}
-              setSortOrder={setSortOrder}
-              viewMode={viewMode}
-              setViewMode={setViewMode}
-              displayGroups={displayGroups}
+const handleEditGroup = async (groupId, groupData) => {
+  try {
+    await updateDoc(doc(db, 'displayGroups', groupId), {
+      ...groupData,
+      updatedAt: serverTimestamp(),
+      updatedBy: user.uid
+    });
+    // Reload display groups
+    const q = query(collection(db, 'displayGroups'), orderBy('order', 'asc'));
+    const snapshot = await getDocs(q);
+    const groups = [];
+    snapshot.forEach(doc => {
+      groups.push({ id: doc.id, ...doc.data() });
+    });
+    setDisplayGroupsFromDB(groups);
+  } catch (error) {
+    console.error('Error editing display group:', error);
+    alert('Error editing display group. Please try again.');
+  }
+};
+
+const handleDeleteGroup = async (groupId) => {
+  try {
+    await deleteDoc(doc(db, 'displayGroups', groupId));
+    // Reload display groups
+    const q = query(collection(db, 'displayGroups'), orderBy('order', 'asc'));
+    const snapshot = await getDocs(q);
+    const groups = [];
+    snapshot.forEach(doc => {
+      groups.push({ id: doc.id, ...doc.data() });
+    });
+    setDisplayGroupsFromDB(groups);
+  } catch (error) {
+    console.error('Error deleting display group:', error);
+    alert('Error deleting display group. Please try again.');
+  }
+};
+
+// 4. Update the component rendering section to fix the component name and add auctions:
+// The complete rendering section should look like this:
+
+{activeTab === 'artifacts' ? (
+  <>
+    <FilterControls
+      searchTerm={searchTerm}
+      setSearchTerm={setSearchTerm}
+      filterCategory={filterCategory}
+      setFilterCategory={setFilterCategory}
+      filterGroup={filterGroup}
+      setFilterGroup={setFilterGroup}
+      sortOrder={sortOrder}
+      setSortOrder={setSortOrder}
+      viewMode={viewMode}
+      setViewMode={setViewMode}
+      displayGroups={displayGroups}
+      isAdmin={isAdmin}
+      user={user}
+      onAddNew={() => setShowForm(true)}
+    />
+
+    {loading ? (
+      <div className="text-center py-12">
+        <p className="text-gray-500">Loading artifacts...</p>
+      </div>
+    ) : filteredArtifacts.length === 0 ? (
+      <div className="text-center py-12">
+        <p className="text-gray-500">No artifacts found</p>
+      </div>
+    ) : viewMode === 'grid' ? (
+      <ArtifactGridView
+        artifacts={filteredArtifacts}
+        isAdmin={isAdmin}
+        user={user}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        onArtifactClick={setSelectedArtifact}
+      />
+    ) : (
+      <ArtifactListView
+        artifacts={filteredArtifacts}
+        isAdmin={isAdmin}
+        user={user}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        onArtifactClick={setSelectedArtifact}
+      />
+    )}
+  </>
+) : activeTab === 'exhibits' ? (
+  <ExhibitManager user={user} isAdmin={isAdmin} artifacts={artifacts} />
+) : activeTab === 'auctions' ? (
+  <AuctionManager 
+    user={user} 
+    isAdmin={isAdmin} 
+    db={db}
+    collection={collection}
+    doc={doc}
+    getDocs={getDocs}
+    getDoc={getDoc}
+    addDoc={addDoc}
+    updateDoc={updateDoc}
+    deleteDoc={deleteDoc}
+    query={query}
+    orderBy={orderBy}
+    where={where}
+    serverTimestamp={serverTimestamp}
+  />
+) : activeTab === 'displayGroups' ? (
+  <DisplayGroupsManager
+    user={user}
+    isAdmin={isAdmin}
+    db={db}
+    collection={collection}
+    doc={doc}
+    getDocs={getDocs}
+    addDoc={addDoc}
+    updateDoc={updateDoc}
+    deleteDoc={deleteDoc}
+    query={query}
+    orderBy={orderBy}
+    where={where}
+  />
+) : null}
+
+return (
+  <div className="min-h-screen bg-gray-50">
+    <div className="max-w-7xl mx-auto p-6">
+      <GalleryHeader 
+        user={user} 
+        isAdmin={isAdmin}
+        onSignIn={() => setShowLoginForm(true)}
+        onSignOut={handleSignOut}
+      />
+      
+      <GalleryTabs 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        isAdmin={isAdmin} 
+      />
+
+      {activeTab === 'artifacts' ? (
+        <>
+          <FilterControls
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            filterCategory={filterCategory}
+            setFilterCategory={setFilterCategory}
+            filterGroup={filterGroup}
+            setFilterGroup={setFilterGroup}
+            sortOrder={sortOrder}
+            setSortOrder={setSortOrder}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            displayGroups={displayGroups}
+            isAdmin={isAdmin}
+            user={user}
+            onAddNew={() => setShowForm(true)}
+          />
+
+          {loading ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500">Loading artifacts...</p>
+            </div>
+          ) : filteredArtifacts.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500">No artifacts found</p>
+            </div>
+          ) : viewMode === 'grid' ? (
+            <ArtifactGridView
+              artifacts={filteredArtifacts}
               isAdmin={isAdmin}
               user={user}
-              onAddNew={() => setShowForm(true)}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onArtifactClick={setSelectedArtifact}
             />
-
-            {loading ? (
-              <div className="text-center py-12">
-                <p className="text-gray-500">Loading artifacts...</p>
-              </div>
-            ) : filteredArtifacts.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-gray-500">No artifacts found</p>
-              </div>
-            ) : viewMode === 'grid' ? (
-              <ArtifactGridView
-                artifacts={filteredArtifacts}
-                isAdmin={isAdmin}
-                user={user}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                onArtifactClick={setSelectedArtifact}
-              />
-            ) : (
-              <ArtifactListView
-                artifacts={filteredArtifacts}
-                isAdmin={isAdmin}
-                user={user}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                onArtifactClick={setSelectedArtifact}
-              />
-            )}
-          </>
-        ) : activeTab === 'exhibits' ? (
-          <ExhibitManager user={user} isAdmin={isAdmin} artifacts={artifacts} />
-        ) : activeTab === 'displayGroups' ? (
-          <DisplayGroupsManager 
-            user={user} 
-            isAdmin={isAdmin}
-            db={db}
-            collection={collection}
-            doc={doc}
-            getDocs={getDocs}
-            addDoc={addDoc}
-            updateDoc={updateDoc}
-            deleteDoc={deleteDoc}
-            query={query}
-            orderBy={orderBy}
-            where={where}
-          />
-        ) : null}
+          ) : (
+            <ArtifactListView
+              artifacts={filteredArtifacts}
+              isAdmin={isAdmin}
+              user={user}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onArtifactClick={setSelectedArtifact}
+            />
+          )}
+        </>
+      ) : activeTab === 'exhibits' ? (
+        <ExhibitManager user={user} isAdmin={isAdmin} artifacts={artifacts} />
+      ) : activeTab === 'auctions' ? (
+        <AuctionManager 
+          user={user} 
+          isAdmin={isAdmin} 
+          db={db}
+          collection={collection}
+          doc={doc}
+          getDocs={getDocs}
+          getDoc={getDoc}
+          addDoc={addDoc}
+          updateDoc={updateDoc}
+          deleteDoc={deleteDoc}
+          query={query}
+          orderBy={orderBy}
+          where={where}
+          serverTimestamp={serverTimestamp}
+        />
+      ) : activeTab === 'displayGroups' ? (
+        <DisplayGroupsManager
+          user={user}
+          isAdmin={isAdmin}
+          db={db}
+          collection={collection}
+          doc={doc}
+          getDocs={getDocs}
+          addDoc={addDoc}
+          updateDoc={updateDoc}
+          deleteDoc={deleteDoc}
+          query={query}
+          orderBy={orderBy}
+          where={where}
+        />
+      ) : null}
 
         {/* Form Modal */}
         {showForm && (

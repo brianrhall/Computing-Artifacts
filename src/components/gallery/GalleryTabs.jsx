@@ -1,6 +1,5 @@
-// src/components/gallery/GalleryTabs.jsx
 import React from 'react';
-import { Package, Eye, Layers } from 'lucide-react';
+import { Package, Eye, Layers, Gavel } from 'lucide-react'; // Add Gavel icon
 import { useNavigate, useLocation } from 'react-router-dom';
 
 const GalleryTabs = ({ activeTab, setActiveTab, isAdmin }) => {
@@ -32,6 +31,12 @@ const GalleryTabs = ({ activeTab, setActiveTab, isAdmin }) => {
       label: 'Exhibits',
       icon: Eye,
       visible: true
+    },
+    {
+      id: 'auctions',      // Add this new tab
+      label: 'Auctions',
+      icon: Gavel,
+      visible: true       // Make it visible to all users
     },
     {
       id: 'displayGroups',
