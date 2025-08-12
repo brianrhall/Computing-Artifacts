@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { 
   Plus, Edit2, Trash2, Calendar, Clock, DollarSign, 
   Package, ArrowRight, X, Save, Grid, List, Eye,
-  Gavel, AlertCircle, CheckCircle
+  Gavel, AlertCircle, CheckCircle, Upload, Image as ImageIcon
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '../../firebase';
 
 const AuctionManager = ({ user, isAdmin, db, collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc, query, orderBy, where, serverTimestamp }) => {
   const navigate = useNavigate();
@@ -19,6 +21,7 @@ const AuctionManager = ({ user, isAdmin, db, collection, doc, getDocs, getDoc, a
   const [searchTerm, setSearchTerm] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successAction, setSuccessAction] = useState('');
+  const [uploading, setUploading] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -70,6 +73,29 @@ const AuctionManager = ({ user, isAdmin, db, collection, doc, getDocs, getDoc, a
       setArtifacts(artifactsData);
     } catch (error) {
       console.error('Error loading artifacts:', error);
+    }
+  };
+
+  // Handle header image upload
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    setUploading(true);
+    
+    try {
+      const timestamp = Date.now();
+      const filename = `auctions/${timestamp}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+      const storageRef = ref(storage, filename);
+      const snapshot = await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      
+      setFormData(prev => ({ ...prev, headerImage: downloadURL }));
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert('Error uploading image. Please try again.');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -157,16 +183,17 @@ const AuctionManager = ({ user, isAdmin, db, collection, doc, getDocs, getDoc, a
       published: auction.published !== undefined ? auction.published : true,
       terms: auction.terms || ''
     });
-    
+
     // Load selected artifacts
-    const selected = artifacts.filter(a => auction.artifactIds?.includes(a.id));
-    setSelectedArtifacts(selected);
-    
+    if (auction.artifactIds && auction.artifactIds.length > 0) {
+      const selected = artifacts.filter(a => auction.artifactIds.includes(a.id));
+      setSelectedArtifacts(selected);
+    }
+
     setEditingId(auction.id);
     setShowForm(true);
   };
 
-  // Reset form
   const resetForm = () => {
     setFormData({
       name: '',
@@ -187,163 +214,279 @@ const AuctionManager = ({ user, isAdmin, db, collection, doc, getDocs, getDoc, a
     setShowArtifactSelector(false);
   };
 
-  // Add/remove artifacts from auction
-  const toggleArtifact = (artifact) => {
-    const exists = selectedArtifacts.find(a => a.id === artifact.id);
-    if (exists) {
+  // Handle artifact selection
+  const toggleArtifactSelection = (artifact) => {
+    const isSelected = selectedArtifacts.some(a => a.id === artifact.id);
+    
+    if (isSelected) {
       setSelectedArtifacts(selectedArtifacts.filter(a => a.id !== artifact.id));
     } else {
       setSelectedArtifacts([...selectedArtifacts, artifact]);
     }
   };
 
-  // Filter artifacts for selection
-  const filteredArtifacts = artifacts.filter(artifact =>
-    artifact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    artifact.manufacturer?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    artifact.category?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // Get auction status
-  const getAuctionStatus = (auction) => {
+  const getStatus = (auction) => {
     const now = new Date();
-    const start = new Date(auction.startDate);
-    const end = new Date(auction.endDate);
+    const startDate = new Date(auction.startDate);
+    const endDate = new Date(auction.endDate);
     
-    if (now < start) return 'upcoming';
-    if (now > end) return 'ended';
+    if (now < startDate) return 'upcoming';
+    if (now > endDate) return 'ended';
     return 'active';
   };
 
-  // Calculate total starting bid for auction
-  const calculateTotalStartingBid = (artifactIds) => {
-    if (!artifactIds || artifactIds.length === 0) return 0;
+  const getStatusColor = (status) => {
+    switch(status) {
+      case 'active': return 'bg-green-100 text-green-800 border-green-200';
+      case 'upcoming': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'ended': return 'bg-gray-100 text-gray-800 border-gray-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch(status) {
+      case 'active': return <Clock className="w-4 h-4" />;
+      case 'upcoming': return <Calendar className="w-4 h-4" />;
+      case 'ended': return <CheckCircle className="w-4 h-4" />;
+      default: return null;
+    }
+  };
+
+  const formatDateTime = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
+  const calculateTimeRemaining = (endDate) => {
+    const now = new Date();
+    const end = new Date(endDate);
+    const diff = end - now;
     
-    return artifactIds.reduce((total, artifactId) => {
-      const artifact = artifacts.find(a => a.id === artifactId);
-      if (artifact && artifact.startingBid) {
-        const value = typeof artifact.startingBid === 'string' 
-          ? parseFloat(artifact.startingBid.replace(/[^0-9.-]+/g, '')) 
-          : artifact.startingBid;
-        return total + (isNaN(value) ? 0 : value);
-      }
-      return total;
-    }, 0);
+    if (diff <= 0) return 'Ended';
+    
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (days > 0) return `${days}d ${hours}h`;
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <Clock className="w-12 h-12 text-gray-400 animate-pulse mx-auto mb-4" />
-          <p className="text-gray-600">Loading auctions...</p>
-        </div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="mb-6 flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Auction Management</h2>
-          <p className="text-gray-600 mt-1">Create and manage online auctions for artifacts</p>
+    <div className="space-y-6">
+      {/* Header with Add Button */}
+      {isAdmin && (
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold text-gray-800">Manage Auctions</h2>
+          <div className="flex items-center gap-3">
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-2 rounded ${viewMode === 'grid' ? 'bg-white shadow-sm' : ''}`}
+              >
+                <Grid className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded ${viewMode === 'list' ? 'bg-white shadow-sm' : ''}`}
+              >
+                <List className="w-4 h-4" />
+              </button>
+            </div>
+            <button
+              onClick={() => setShowForm(true)}
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              Add Auction
+            </button>
+          </div>
         </div>
-        
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-            className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2"
-          >
-            {viewMode === 'grid' ? <List className="w-4 h-4" /> : <Grid className="w-4 h-4" />}
-          </button>
-          
+      )}
+
+      {/* Auctions Display */}
+      {auctions.length === 0 ? (
+        <div className="bg-gray-50 rounded-lg p-12 text-center">
+          <Gavel className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-600">No auctions created yet.</p>
           {isAdmin && (
             <button
               onClick={() => setShowForm(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              className="mt-4 text-blue-600 hover:text-blue-800"
             >
-              <Plus className="w-5 h-5" />
-              Create Auction
+              Create your first auction
             </button>
           )}
         </div>
-      </div>
-
-      {/* Auctions Display */}
-      {viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {auctions.map(auction => {
-            const status = getAuctionStatus(auction);
-            return (
-              <div key={auction.id} className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
-                <div className="aspect-[16/9] bg-gray-100 relative overflow-hidden">
-                  {auction.headerImage ? (
-                    <img src={auction.headerImage} alt={auction.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="flex items-center justify-center h-full">
-                      <Gavel className="w-12 h-12 text-gray-300" />
-                    </div>
-                  )}
-                  {auction.featured && (
-                    <span className="absolute top-2 left-2 px-2 py-1 bg-yellow-500 text-white text-xs font-medium rounded">
-                      Featured
-                    </span>
-                  )}
-                  <span className={`absolute top-2 right-2 px-2 py-1 text-xs font-medium rounded ${
-                    status === 'active' ? 'bg-green-500 text-white' :
-                    status === 'upcoming' ? 'bg-blue-500 text-white' :
-                    'bg-gray-500 text-white'
-                  }`}>
-                    {status === 'active' ? 'Live' : status === 'upcoming' ? 'Upcoming' : 'Ended'}
-                  </span>
-                </div>
+      ) : (
+        <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}>
+          {auctions.map((auction) => {
+            const status = getStatus(auction);
+            const timeRemaining = status === 'active' ? calculateTimeRemaining(auction.endDate) : null;
+            
+            return viewMode === 'grid' ? (
+              // Grid View
+              <div key={auction.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                {auction.headerImage && (
+                  <div className="h-48 overflow-hidden">
+                    <img
+                      src={auction.headerImage}
+                      alt={auction.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
                 
-                <div className="p-4">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{auction.name}</h3>
-                  <p className="text-sm text-gray-600 line-clamp-2 mb-3">{auction.description}</p>
+                <div className="p-5">
+                  <div className="flex items-start justify-between mb-3">
+                    <h3 className="text-lg font-semibold text-gray-900">{auction.name}</h3>
+                    <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(status)}`}>
+                      {getStatusIcon(status)}
+                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                    </span>
+                  </div>
                   
-                  <div className="space-y-2 text-sm text-gray-500 mb-3">
-                    <div className="flex items-center gap-2">
+                  {auction.description && (
+                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">{auction.description}</p>
+                  )}
+                  
+                  <div className="space-y-2 mb-4 text-sm">
+                    <div className="flex items-center gap-2 text-gray-500">
                       <Calendar className="w-4 h-4" />
-                      <span>
-                        {new Date(auction.startDate).toLocaleDateString()} - {new Date(auction.endDate).toLocaleDateString()}
-                      </span>
+                      <span>{formatDateTime(auction.startDate)}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Package className="w-4 h-4" />
-                      <span>{auction.artifactIds?.length || 0} items</span>
-                    </div>
-                    {isAdmin && auction.artifactIds?.length > 0 && (
-                      <div className="flex items-center gap-2">
-                        <DollarSign className="w-4 h-4" />
-                        <span>Starting from ${calculateTotalStartingBid(auction.artifactIds).toLocaleString()}</span>
+                    
+                    {status === 'active' && timeRemaining && (
+                      <div className="flex items-center gap-2 text-orange-600 font-medium">
+                        <Clock className="w-4 h-4" />
+                        <span>{timeRemaining} remaining</span>
+                      </div>
+                    )}
+                    
+                    {auction.artifactIds && auction.artifactIds.length > 0 && (
+                      <div className="flex items-center gap-2 text-gray-500">
+                        <Package className="w-4 h-4" />
+                        <span>{auction.artifactIds.length} artifacts</span>
                       </div>
                     )}
                   </div>
                   
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-2">
                     <button
                       onClick={() => navigate(`/auction/${auction.id}`)}
-                      className="flex-1 px-3 py-1 bg-gray-50 text-gray-600 rounded hover:bg-gray-100 transition-colors flex items-center justify-center gap-1"
+                      className="flex-1 flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
                     >
                       <Eye className="w-4 h-4" />
                       View
                     </button>
+                    
                     {isAdmin && (
                       <>
                         <button
                           onClick={() => handleEdit(auction)}
-                          className="px-3 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors"
+                          className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                         >
-                          Edit
+                          <Edit2 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(auction.id)}
-                          className="px-3 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors"
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                         >
-                          Delete
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              // List View
+              <div key={auction.id} className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4 flex-1">
+                    {auction.headerImage && (
+                      <img
+                        src={auction.headerImage}
+                        alt={auction.name}
+                        className="w-20 h-20 object-cover rounded-lg"
+                      />
+                    )}
+                    
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-lg font-semibold text-gray-900">{auction.name}</h3>
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(status)}`}>
+                          {getStatusIcon(status)}
+                          {status.charAt(0).toUpperCase() + status.slice(1)}
+                        </span>
+                      </div>
+                      
+                      {auction.description && (
+                        <p className="text-sm text-gray-600 mb-2">{auction.description}</p>
+                      )}
+                      
+                      <div className="flex items-center gap-4 text-sm text-gray-500">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-4 h-4" />
+                          {formatDateTime(auction.startDate)}
+                        </span>
+                        
+                        {status === 'active' && timeRemaining && (
+                          <span className="flex items-center gap-1 text-orange-600 font-medium">
+                            <Clock className="w-4 h-4" />
+                            {timeRemaining} remaining
+                          </span>
+                        )}
+                        
+                        {auction.artifactIds && auction.artifactIds.length > 0 && (
+                          <span className="flex items-center gap-1">
+                            <Package className="w-4 h-4" />
+                            {auction.artifactIds.length} artifacts
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 ml-4">
+                    <button
+                      onClick={() => navigate(`/auction/${auction.id}`)}
+                      className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <Eye className="w-4 h-4" />
+                      View
+                    </button>
+                    
+                    {isAdmin && (
+                      <>
+                        <button
+                          onClick={() => handleEdit(auction)}
+                          className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(auction.id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </>
                     )}
@@ -353,81 +496,14 @@ const AuctionManager = ({ user, isAdmin, db, collection, doc, getDocs, getDoc, a
             );
           })}
         </div>
-      ) : (
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Name</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Dates</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Items</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Status</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {auctions.map(auction => {
-                const status = getAuctionStatus(auction);
-                return (
-                  <tr key={auction.id} className="border-b hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <div>
-                        <div className="font-medium text-gray-900">{auction.name}</div>
-                        <div className="text-sm text-gray-500 line-clamp-1">{auction.description}</div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {new Date(auction.startDate).toLocaleDateString()} - {new Date(auction.endDate).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{auction.artifactIds?.length || 0}</td>
-                    <td className="px-4 py-3">
-                      <span className={`text-xs px-2 py-1 rounded-full ${
-                        status === 'active' ? 'bg-green-100 text-green-800' :
-                        status === 'upcoming' ? 'bg-blue-100 text-blue-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {status === 'active' ? 'Live' : status === 'upcoming' ? 'Upcoming' : 'Ended'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => navigate(`/auction/${auction.id}`)}
-                          className="text-blue-600 hover:text-blue-900"
-                        >
-                          View
-                        </button>
-                        {isAdmin && (
-                          <>
-                            <button
-                              onClick={() => handleEdit(auction)}
-                              className="text-gray-600 hover:text-gray-900"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleDelete(auction.id)}
-                              className="text-red-600 hover:text-red-900"
-                            >
-                              Delete
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
       )}
 
-      {/* Create/Edit Form Modal */}
+      {/* Auction Form Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="p-6 border-b flex justify-between items-center">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+            {/* Form Header */}
+            <div className="px-6 py-4 border-b flex items-center justify-between">
               <h3 className="text-xl font-semibold text-gray-900">
                 {editingId ? 'Edit Auction' : 'Create New Auction'}
               </h3>
@@ -509,16 +585,41 @@ const AuctionManager = ({ user, isAdmin, db, collection, doc, getDocs, getDoc, a
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Header Image URL
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Header Image
                     </label>
-                    <input
-                      type="url"
-                      value={formData.headerImage}
-                      onChange={(e) => setFormData({ ...formData, headerImage: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="https://..."
-                    />
+                    <div className="space-y-2">
+                      {formData.headerImage ? (
+                        <div className="relative">
+                          <img
+                            src={formData.headerImage}
+                            alt="Header"
+                            className="w-full h-40 object-cover rounded-lg"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setFormData({...formData, headerImage: ''})}
+                            className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="w-full h-40 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-gray-400">
+                          <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                          <span className="text-sm text-gray-500">
+                            {uploading ? 'Uploading...' : 'Click to upload'}
+                          </span>
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                            disabled={uploading}
+                          />
+                        </label>
+                      )}
+                    </div>
                   </div>
                 </div>
                 
@@ -557,61 +658,43 @@ const AuctionManager = ({ user, isAdmin, db, collection, doc, getDocs, getDoc, a
                     />
                     <span className="text-sm font-medium text-gray-700">Published</span>
                   </label>
-                  
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.buyNowEnabled}
-                      onChange={(e) => setFormData({ ...formData, buyNowEnabled: e.target.checked })}
-                      className="rounded text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm font-medium text-gray-700">Enable Buy Now</span>
-                  </label>
                 </div>
                 
                 {/* Artifacts Selection */}
                 <div>
-                  <div className="flex justify-between items-center mb-3">
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-700">Auction Items</h4>
-                      <p className="text-sm text-gray-500">
-                        {selectedArtifacts.length} items selected
-                      </p>
-                    </div>
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Artifacts ({selectedArtifacts.length} selected)
+                    </label>
                     <button
                       type="button"
                       onClick={() => setShowArtifactSelector(!showArtifactSelector)}
-                      className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-2"
+                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
                     >
-                      <Plus className="w-4 h-4" />
-                      Add Items
+                      {showArtifactSelector ? 'Hide' : 'Select Artifacts'}
                     </button>
                   </div>
                   
                   {selectedArtifacts.length > 0 && (
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
+                    <div className="bg-gray-50 rounded-lg p-3 mb-3 space-y-2">
                       {selectedArtifacts.map(artifact => (
-                        <div key={artifact.id} className="relative bg-gray-50 rounded-lg p-3">
-                          {artifact.images?.[0] && (
-                            <img
-                              src={artifact.images[0]}
-                              alt={artifact.name}
-                              className="w-full h-24 object-cover rounded mb-2"
-                            />
-                          )}
-                          <p className="text-sm font-medium text-gray-900 line-clamp-1">{artifact.name}</p>
-                          <p className="text-xs text-gray-500">{artifact.manufacturer}</p>
-                          {artifact.value && (
-                            <p className="text-xs text-green-600 font-medium mt-1">
-                              Est. ${artifact.value}
-                            </p>
-                          )}
+                        <div key={artifact.id} className="flex items-center justify-between bg-white p-2 rounded">
+                          <div className="flex items-center gap-3">
+                            {artifact.images?.[0] && (
+                              <img
+                                src={artifact.images[0]}
+                                alt={artifact.name}
+                                className="w-10 h-10 object-cover rounded"
+                              />
+                            )}
+                            <span className="text-sm font-medium">{artifact.name}</span>
+                          </div>
                           <button
                             type="button"
-                            onClick={() => toggleArtifact(artifact)}
-                            className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                            onClick={() => toggleArtifactSelection(artifact)}
+                            className="text-red-600 hover:text-red-800"
                           >
-                            <X className="w-3 h-3" />
+                            <X className="w-4 h-4" />
                           </button>
                         </div>
                       ))}
@@ -619,51 +702,56 @@ const AuctionManager = ({ user, isAdmin, db, collection, doc, getDocs, getDoc, a
                   )}
                   
                   {showArtifactSelector && (
-                    <div className="border border-gray-200 rounded-lg p-4 space-y-3">
+                    <div className="border rounded-lg p-4 max-h-64 overflow-y-auto">
                       <input
                         type="text"
                         placeholder="Search artifacts..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                       
-                      <div className="max-h-60 overflow-y-auto space-y-2">
-                        {filteredArtifacts.map(artifact => {
-                          const isSelected = selectedArtifacts.find(a => a.id === artifact.id);
-                          return (
-                            <div
-                              key={artifact.id}
-                              onClick={() => toggleArtifact(artifact)}
-                              className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                                isSelected 
-                                  ? 'bg-blue-50 border-2 border-blue-500' 
-                                  : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
-                              }`}
-                            >
-                              <div className="flex items-center gap-3">
-                                {artifact.images?.[0] && (
-                                  <img
-                                    src={artifact.images[0]}
-                                    alt={artifact.name}
-                                    className="w-12 h-12 object-cover rounded"
-                                  />
-                                )}
-                                <div className="flex-1">
-                                  <p className="font-medium text-gray-900">{artifact.name}</p>
-                                  <p className="text-sm text-gray-500">
-                                    {artifact.manufacturer} • {artifact.category}
-                                  </p>
+                      <div className="space-y-2">
+                        {artifacts
+                          .filter(artifact => 
+                            artifact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            artifact.manufacturer?.toLowerCase().includes(searchTerm.toLowerCase())
+                          )
+                          .map(artifact => {
+                            const isSelected = selectedArtifacts.some(a => a.id === artifact.id);
+                            return (
+                              <div
+                                key={artifact.id}
+                                onClick={() => toggleArtifactSelection(artifact)}
+                                className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                                  isSelected 
+                                    ? 'bg-blue-50 border-2 border-blue-500' 
+                                    : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                                }`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  {artifact.images?.[0] && (
+                                    <img
+                                      src={artifact.images[0]}
+                                      alt={artifact.name}
+                                      className="w-12 h-12 object-cover rounded"
+                                    />
+                                  )}
+                                  <div className="flex-1">
+                                    <p className="font-medium text-gray-900">{artifact.name}</p>
+                                    <p className="text-sm text-gray-500">
+                                      {artifact.manufacturer} • {artifact.category}
+                                    </p>
+                                  </div>
+                                  {artifact.value && (
+                                    <span className="text-sm font-medium text-green-600">
+                                      ${artifact.value}
+                                    </span>
+                                  )}
                                 </div>
-                                {artifact.value && (
-                                  <span className="text-sm font-medium text-green-600">
-                                    ${artifact.value}
-                                  </span>
-                                )}
                               </div>
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
                       </div>
                     </div>
                   )}
@@ -702,29 +790,12 @@ const AuctionManager = ({ user, isAdmin, db, collection, doc, getDocs, getDoc, a
                 Success!
               </h3>
               <p className="text-gray-600">
-                Your auction has been {successAction} successfully.
+                Auction has been {successAction} successfully.
               </p>
             </div>
           </div>
         </div>
       )}
-
-      <style jsx>{`
-        @keyframes fade-in-up {
-          0% {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          100% {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        .animate-fade-in-up {
-          animation: fade-in-up 0.3s ease-out;
-        }
-      `}</style>
     </div>
   );
 };
