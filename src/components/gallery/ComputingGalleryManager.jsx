@@ -390,7 +390,7 @@ const ComputingGalleryManager = () => {
   // Main render
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         <GalleryHeader 
           user={user} 
           isAdmin={isAdmin}
