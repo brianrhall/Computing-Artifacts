@@ -10,6 +10,8 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useNavigate } from 'react-router-dom';
+import ErrorModal from './shared/ErrorModal';
+import { useErrorModal } from '../hooks/useErrorModal';
 
 const ExhibitManager = ({ user, isAdmin, artifacts }) => {
   const [exhibits, setExhibits] = useState([]);
@@ -24,6 +26,9 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successAction, setSuccessAction] = useState('created');
   const navigate = useNavigate();
+  
+  // Add error modal hook
+  const { error, showError, showErrorModal, hideErrorModal } = useErrorModal();
   
   const [formData, setFormData] = useState({
     name: '',
@@ -77,7 +82,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
       setFormData(prev => ({ ...prev, headerImage: downloadURL }));
     } catch (error) {
       console.error('Error uploading image:', error);
-      alert('Error uploading image. Please try again.');
+      showErrorModal('Error uploading image. Please try again.');
     } finally {
       setUploading(false);
     }
@@ -100,7 +105,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
       setFormData(prev => ({ ...prev, galleryLayoutImage: downloadURL }));
     } catch (error) {
       console.error('Error uploading gallery layout image:', error);
-      alert('Error uploading gallery layout image. Please try again.');
+      showErrorModal('Error uploading gallery layout image. Please try again.');
     } finally {
       setUploadingGalleryLayout(false);
     }
@@ -109,7 +114,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
   // Handle exhibit save
   const handleSave = async () => {
     if (!formData.name || !formData.description) {
-      alert('Please fill in required fields (Name and Description)');
+      showErrorModal('Please fill in required fields (Name and Description)', 'Missing Required Fields');
       return;
     }
     
@@ -145,7 +150,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
       }, 3000);
     } catch (error) {
       console.error('Error saving exhibit:', error);
-      alert('Error saving exhibit. Please try again.');
+      showErrorModal('Error saving exhibit. Please try again.');
     }
   };
 
@@ -157,7 +162,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
         await loadExhibits();
       } catch (error) {
         console.error('Error deleting exhibit:', error);
-        alert('Error deleting exhibit. Please try again.');
+        showErrorModal('Error deleting exhibit. Please try again.');
       }
     }
   };
@@ -242,56 +247,10 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Summary Stats for Admins */}
-      {isAdmin && exhibits.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Exhibits</p>
-                <p className="text-2xl font-semibold text-gray-900">{exhibits.length}</p>
-              </div>
-              <Grid className="w-8 h-8 text-gray-400" />
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Artifacts</p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {exhibits.reduce((total, exhibit) => total + (exhibit.artifactIds?.length || 0), 0)}
-                </p>
-              </div>
-              <Users className="w-8 h-8 text-gray-400" />
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Collection Value</p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  ${exhibits.reduce((total, exhibit) => 
-                    total + calculateExhibitValue(exhibit.artifactIds), 0
-                  ).toLocaleString()}
-                </p>
-              </div>
-              <DollarSign className="w-8 h-8 text-gray-400" />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Exhibits</h2>
-          <p className="text-gray-600 mt-1">Create and manage themed collections</p>
-        </div>
-        
-        <div className="flex gap-2">
+    <div className="p-4">
+      <div className="mb-6 flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-gray-900">Exhibits</h2>
+        <div className="flex items-center gap-3">
           <button
             onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
             className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2"
@@ -316,25 +275,25 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {exhibits.map(exhibit => (
             <div key={exhibit.id} className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
-              <div className="aspect-[16/9] bg-gray-100 relative overflow-hidden">
-                {exhibit.headerImage ? (
-                  <img src={exhibit.headerImage} alt={exhibit.name} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <ImageIcon className="w-12 h-12 text-gray-300" />
-                  </div>
-                )}
-                {exhibit.featured && (
-                  <span className="absolute top-2 left-2 px-2 py-1 bg-yellow-500 text-white text-xs font-medium rounded">
-                    Featured
-                  </span>
-                )}
-                {!exhibit.published && (
-                  <span className="absolute top-2 right-2 px-2 py-1 bg-gray-500 text-white text-xs font-medium rounded">
-                    Draft
-                  </span>
-                )}
-              </div>
+{exhibit.headerImage && (
+  <div className="h-48 overflow-hidden relative">
+    <img
+      src={exhibit.headerImage}
+      alt={exhibit.name}
+      className="w-full h-full object-cover"
+    />
+    {exhibit.featured && (
+      <span className="absolute top-2 left-2 px-2 py-1 bg-yellow-500 text-white text-xs font-medium rounded">
+        Featured
+      </span>
+    )}
+    {!exhibit.published && (
+      <span className="absolute top-2 right-2 px-2 py-1 bg-gray-500 text-white text-xs font-medium rounded">
+        Draft
+      </span>
+    )}
+  </div>
+)}
               
               <div className="p-4">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">{exhibit.name}</h3>
@@ -441,30 +400,32 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                       }`}>
                         {exhibit.published ? 'Published' : 'Draft'}
                       </span>
+                      {exhibit.featured && (
+                        <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full">
+                          Featured
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex gap-2">
-                        <button
-                          onClick={() => navigate(`/exhibit/${exhibit.id}`)}
-                          className="flex-1 px-3 py-1 bg-gray-50 text-gray-600 rounded hover:bg-gray-100 transition-colors flex items-center justify-center gap-1"
-                        >
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => navigate(`/exhibit/${exhibit.id}`)}
+                        className="text-gray-600 hover:text-gray-900"
+                      >
                         <Eye className="w-4 h-4" />
-                          View
-                        </button>
+                      </button>
                       {isAdmin && (
                         <>
                           <button
                             onClick={() => handleEdit(exhibit)}
                             className="text-blue-600 hover:text-blue-800"
-                            title="Edit"
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(exhibit.id)}
                             className="text-red-600 hover:text-red-800"
-                            title="Delete"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -479,128 +440,123 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
         </div>
       )}
 
-      {/* Form Modal */}
-      {showForm && isAdmin && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white rounded-lg w-full max-w-4xl my-4 max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b z-10 px-6 py-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-900">
+      {/* Create/Edit Form Modal */}
+      {showForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-semibold">
                   {editingId ? 'Edit Exhibit' : 'Create New Exhibit'}
-                </h2>
+                </h3>
                 <button
                   onClick={resetForm}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
-            </div>
-            
-            <div className="p-6 space-y-6">
-              {/* Basic Info */}
+
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter exhibit name"
-                  />
+                {/* Basic Information */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Curator
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.curator}
+                      onChange={(e) => setFormData({ ...formData, curator: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Description <span className="text-red-500">*</span>
                   </label>
                   <textarea
                     value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Describe the exhibit"
+                    required
                   />
                 </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                {/* Date and Location */}
+                <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Start Date
+                    </label>
                     <input
                       type="date"
                       value={formData.startDate}
-                      onChange={(e) => setFormData({...formData, startDate: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
-                  
+
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      End Date
+                    </label>
                     <input
                       type="date"
                       value={formData.endDate}
-                      onChange={(e) => setFormData({...formData, endDate: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Location
+                    </label>
                     <input
                       type="text"
                       value={formData.location}
-                      onChange={(e) => setFormData({...formData, location: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Exhibition location"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Curator</label>
-                    <input
-                      type="text"
-                      value={formData.curator}
-                      onChange={(e) => setFormData({...formData, curator: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Curator name"
                     />
                   </div>
                 </div>
-              </div>
-              
-              {/* Images */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">Images</h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                {/* Images */}
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Header Image</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Header Image
+                    </label>
                     <div className="space-y-2">
-                      {formData.headerImage ? (
-                        <div className="relative">
-                          <img
-                            src={formData.headerImage}
-                            alt="Header"
-                            className="w-full h-40 object-cover rounded-lg"
-                          />
-                          <button
-                            onClick={() => setFormData({...formData, headerImage: ''})}
-                            className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <label className="w-full h-40 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-gray-400">
-                          <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                          <span className="text-sm text-gray-500">
+                      {formData.headerImage && (
+                        <img 
+                          src={formData.headerImage} 
+                          alt="Header" 
+                          className="w-full h-32 object-cover rounded"
+                        />
+                      )}
+                      <label className="block">
+                        <span className="sr-only">Choose header image</span>
+                        <div className="w-full px-3 py-2 border-2 border-dashed border-gray-300 rounded-lg text-center cursor-pointer hover:border-gray-400 transition-colors">
+                          <Upload className="w-5 h-5 mx-auto mb-1 text-gray-400" />
+                          <span className="text-sm text-gray-600">
                             {uploading ? 'Uploading...' : 'Click to upload'}
                           </span>
                           <input
@@ -610,32 +566,28 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                             onChange={handleImageUpload}
                             disabled={uploading}
                           />
-                        </label>
-                      )}
+                        </div>
+                      </label>
                     </div>
                   </div>
-                  
+
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Gallery Layout Image</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Gallery Layout Image
+                    </label>
                     <div className="space-y-2">
-                      {formData.galleryLayoutImage ? (
-                        <div className="relative">
-                          <img
-                            src={formData.galleryLayoutImage}
-                            alt="Gallery Layout"
-                            className="w-full h-40 object-cover rounded-lg"
-                          />
-                          <button
-                            onClick={() => setFormData({...formData, galleryLayoutImage: ''})}
-                            className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <label className="w-full h-40 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-gray-400">
-                          <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                          <span className="text-sm text-gray-500">
+                      {formData.galleryLayoutImage && (
+                        <img 
+                          src={formData.galleryLayoutImage} 
+                          alt="Gallery Layout" 
+                          className="w-full h-32 object-cover rounded"
+                        />
+                      )}
+                      <label className="block">
+                        <span className="sr-only">Choose gallery layout image</span>
+                        <div className="w-full px-3 py-2 border-2 border-dashed border-gray-300 rounded-lg text-center cursor-pointer hover:border-gray-400 transition-colors">
+                          <Upload className="w-5 h-5 mx-auto mb-1 text-gray-400" />
+                          <span className="text-sm text-gray-600">
                             {uploadingGalleryLayout ? 'Uploading...' : 'Click to upload'}
                           </span>
                           <input
@@ -645,146 +597,123 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                             onChange={handleGalleryLayoutUpload}
                             disabled={uploadingGalleryLayout}
                           />
-                        </label>
-                      )}
+                        </div>
+                      </label>
                     </div>
                   </div>
                 </div>
-              </div>
-              
-              {/* Artifacts */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Artifacts</h3>
-                    {isAdmin && selectedArtifacts.length > 0 && (
-                      <p className="text-sm text-gray-600 mt-1">
-                        Total value: ${selectedArtifacts.reduce((total, artifact) => {
-                          const value = artifact.value ? 
-                            (typeof artifact.value === 'string' 
-                              ? parseFloat(artifact.value.replace(/[^0-9.-]+/g, '')) 
-                              : artifact.value) 
-                            : 0;
-                          return total + (isNaN(value) ? 0 : value);
-                        }, 0).toLocaleString()}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => setShowArtifactSelector(!showArtifactSelector)}
-                    className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add Artifacts
-                  </button>
-                </div>
-                
-                {selectedArtifacts.length > 0 && (
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {selectedArtifacts.map(artifact => (
-                      <div key={artifact.id} className="relative bg-gray-50 rounded-lg p-3">
-                        {artifact.images?.[0] && (
-                          <img
-                            src={artifact.images[0]}
-                            alt={artifact.name}
-                            className="w-full h-24 object-cover rounded mb-2"
-                          />
-                        )}
-                        <p className="text-sm font-medium text-gray-900 line-clamp-1">{artifact.name}</p>
-                        <p className="text-xs text-gray-500">{artifact.manufacturer}</p>
-                        <button
-                          onClick={() => toggleArtifact(artifact)}
-                          className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                
-                {showArtifactSelector && (
-                  <div className="border border-gray-200 rounded-lg p-4 space-y-3">
-                    <input
-                      type="text"
-                      placeholder="Search artifacts..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                    
-                    <div className="max-h-60 overflow-y-auto space-y-2">
-                      {filteredArtifacts.map(artifact => (
-                        <label
-                          key={artifact.id}
-                          className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedArtifacts.some(a => a.id === artifact.id)}
-                            onChange={() => toggleArtifact(artifact)}
-                            className="rounded"
-                          />
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-gray-900">{artifact.name}</p>
-                            <p className="text-xs text-gray-500">
-                              {artifact.manufacturer} • {artifact.category}
-                            </p>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-              {/* Settings */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">Settings</h3>
-                
-                <div className="space-y-3">
+
+                {/* Options */}
+                <div className="flex items-center gap-6">
                   <label className="flex items-center gap-2">
                     <input
                       type="checkbox"
                       checked={formData.featured}
-                      onChange={(e) => setFormData({...formData, featured: e.target.checked})}
-                      className="rounded"
+                      onChange={(e) => setFormData({ ...formData, featured: e.target.checked })}
+                      className="rounded text-blue-600 focus:ring-blue-500"
                     />
-                    <span className="text-sm">Feature this exhibit on the homepage</span>
+                    <span className="text-sm font-medium text-gray-700">Featured Exhibit</span>
                   </label>
-                  
+
                   <label className="flex items-center gap-2">
                     <input
                       type="checkbox"
                       checked={formData.published}
-                      onChange={(e) => setFormData({...formData, published: e.target.checked})}
-                      className="rounded"
+                      onChange={(e) => setFormData({ ...formData, published: e.target.checked })}
+                      className="rounded text-blue-600 focus:ring-blue-500"
                     />
-                    <span className="text-sm">Publish exhibit (make visible to all visitors)</span>
+                    <span className="text-sm font-medium text-gray-700">Published</span>
                   </label>
                 </div>
-              </div>
-              
-              {/* Actions */}
-              <div className="flex gap-4 pt-4 border-t">
-                <button
-                  onClick={resetForm}
-                  className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={!formData.name || !formData.description}
-                  className={`px-6 py-2 ${
-                    !formData.name || !formData.description 
-                      ? 'bg-gray-400 cursor-not-allowed' 
-                      : 'bg-blue-600 hover:bg-blue-700'
-                  } text-white rounded-lg transition-colors flex items-center gap-2`}
-                >
-                  <Save className="w-4 h-4" />
-                  {editingId ? 'Update' : 'Create'} Exhibit
-                </button>
+
+                {/* Artifacts Selection */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Artifacts ({selectedArtifacts.length} selected)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowArtifactSelector(!showArtifactSelector)}
+                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                    >
+                      {showArtifactSelector ? 'Hide' : 'Select'} Artifacts
+                    </button>
+                  </div>
+
+                  {showArtifactSelector && (
+                    <div className="border rounded-lg p-4 space-y-3">
+                      <input
+                        type="text"
+                        placeholder="Search artifacts..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      />
+
+                      <div className="max-h-60 overflow-y-auto space-y-2">
+                        {filteredArtifacts.map(artifact => {
+                          const isSelected = selectedArtifacts.some(a => a.id === artifact.id);
+                          return (
+                            <div
+                              key={artifact.id}
+                              onClick={() => toggleArtifact(artifact)}
+                              className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                                isSelected 
+                                  ? 'bg-blue-50 border-2 border-blue-500' 
+                                  : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                {artifact.images?.[0] && (
+                                  <img
+                                    src={artifact.images[0]}
+                                    alt={artifact.name}
+                                    className="w-12 h-12 object-cover rounded"
+                                  />
+                                )}
+                                <div className="flex-1">
+                                  <p className="font-medium text-gray-900">{artifact.name}</p>
+                                  <p className="text-sm text-gray-500">
+                                    {artifact.manufacturer} • {artifact.category}
+                                  </p>
+                                </div>
+                                {artifact.value && (
+                                  <span className="text-sm font-medium text-green-600">
+                                    ${artifact.value}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Submit Button */}
+                <div className="flex justify-end gap-3 pt-4 border-t">
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={!formData.name || !formData.description}
+                    className={`px-6 py-2 rounded-lg ${
+                      formData.name && formData.description
+                        ? 'bg-blue-600 hover:bg-blue-700'
+                        : 'bg-gray-400 cursor-not-allowed'
+                    } text-white transition-colors flex items-center gap-2`}
+                  >
+                    <Save className="w-4 h-4" />
+                    {editingId ? 'Update' : 'Create'} Exhibit
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -806,6 +735,15 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Error Modal */}
+      {showError && (
+        <ErrorModal
+          title={error?.title}
+          message={error?.message}
+          onClose={hideErrorModal}
+        />
       )}
 
       <style jsx>{`

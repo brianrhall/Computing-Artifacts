@@ -3,12 +3,13 @@ import { useParams, Link } from 'react-router-dom';
 import { 
   Calendar, Clock, ArrowLeft, DollarSign, 
   Gavel, AlertCircle, CheckCircle, User, 
-  Package, Eye, Timer, TrendingUp, Shield, X  // Added X here
+  Package, Eye, Timer, TrendingUp, Shield, 
+  X, Grid, List, MapPin
 } from 'lucide-react';
-import { db, auth } from '../../firebase';  // Fixed path - added '../'
+import { db, auth } from '../../firebase';
 import { 
   doc, getDoc, collection, query, where, getDocs, 
-  addDoc, orderBy, limit, onSnapshot, serverTimestamp  // limit is already here
+  addDoc, orderBy, limit, onSnapshot, serverTimestamp
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -27,6 +28,7 @@ const AuctionView = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState('');
   const [auctionStatus, setAuctionStatus] = useState('');
+  const [viewMode, setViewMode] = useState('grid');
 
   // Check authentication status
   useEffect(() => {
@@ -104,7 +106,6 @@ const AuctionView = () => {
 
   const loadAuction = async () => {
     try {
-      // Load auction data
       const auctionDoc = await getDoc(doc(db, 'auctions', auctionId));
       
       if (!auctionDoc.exists()) {
@@ -169,36 +170,19 @@ const AuctionView = () => {
     };
   };
 
-  const handleBidClick = (artifact) => {
+  const handlePlaceBid = async () => {
     if (!user) {
       alert('Please sign in to place a bid');
       return;
     }
     
-    if (auctionStatus !== 'active') {
-      alert('This auction is not currently active');
+    if (!selectedArtifact || !bidAmount) {
       return;
     }
     
-    setSelectedArtifact(artifact);
-    const currentBid = bids[artifact.id]?.bidAmount || 0;
-    const minimumBid = Math.max(
-      artifact.startingBid || artifact.value || 0,
-      currentBid + auction.minimumBidIncrement
-    );
-    setBidAmount(minimumBid.toString());
-    setShowBidModal(true);
-  };
-
-  const handlePlaceBid = async () => {
-    if (!selectedArtifact || !bidAmount) return;
-    
     const amount = parseFloat(bidAmount);
-    const currentBid = bids[selectedArtifact.id]?.bidAmount || 0;
-    const minimumBid = Math.max(
-      selectedArtifact.startingBid || selectedArtifact.value || 0,
-      currentBid + auction.minimumBidIncrement
-    );
+    const currentBid = bids[selectedArtifact.id];
+    const minimumBid = currentBid ? currentBid.bidAmount * 1.05 : (selectedArtifact.startingBid || 0);
     
     if (amount < minimumBid) {
       alert(`Minimum bid is $${minimumBid.toFixed(2)}`);
@@ -211,18 +195,17 @@ const AuctionView = () => {
       await addDoc(collection(db, 'bids'), {
         auctionId: auctionId,
         artifactId: selectedArtifact.id,
-        artifactName: selectedArtifact.name,
-        userId: user.uid,
-        userEmail: user.email,
-        userName: user.displayName || user.email,
         bidAmount: amount,
+        bidderId: user.uid,
+        bidderName: user.displayName || user.email,
         timestamp: serverTimestamp()
       });
       
       setShowBidModal(false);
+      setBidAmount('');
+      setSelectedArtifact(null);
       setShowSuccessModal(true);
       
-      // Auto-hide success modal
       setTimeout(() => {
         setShowSuccessModal(false);
       }, 3000);
@@ -238,7 +221,7 @@ const AuctionView = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <Clock className="w-12 h-12 text-gray-400 animate-pulse mx-auto mb-4" />
+          <Clock className="w-12 h-12 text-gray-400 animate-spin mx-auto mb-4" />
           <p className="text-gray-600">Loading auction...</p>
         </div>
       </div>
@@ -248,19 +231,25 @@ const AuctionView = () => {
   if (!auction) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Auction Not Found</h2>
-          <p className="text-gray-600 mb-4">The auction you're looking for doesn't exist.</p>
-          <Link to="/?tab=auctions" className="text-blue-600 hover:text-blue-800 flex items-center gap-2 justify-center">
-            <ArrowLeft className="w-4 h-4" />
-            Back to Auctions
-          </Link>
+        <div className="max-w-md w-full mx-auto p-6">
+          <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+            <div className="p-6 text-center">
+              <Gavel className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Auction Not Found</h2>
+              <p className="text-gray-600 mb-4">This auction may have been removed or doesn't exist.</p>
+              
+              <Link to="/?tab=auctions" className="text-blue-600 hover:text-blue-800 flex items-center gap-2 justify-center">
+                <ArrowLeft className="w-4 h-4" />
+                Back to Auctions
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
-  // Check if auction is unpublished and user is not admin
+  // Show placeholder for unpublished auctions
   if (!auction.published && !isAdmin) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -299,9 +288,9 @@ const AuctionView = () => {
         </div>
       )}
 
-      {/* Header Image */}
+      {/* Header Image - Matching ExhibitView height */}
       {auction.headerImage && (
-        <div className="relative h-64 md:h-80 bg-gray-900 overflow-hidden">
+        <div className="relative h-80 md:h-[28rem] bg-gray-900 overflow-hidden">
           <img 
             src={auction.headerImage} 
             alt={auction.name}
@@ -310,7 +299,7 @@ const AuctionView = () => {
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
           <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
             <div className="max-w-7xl mx-auto">
-              <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
+              <h1 className="text-3xl md:text-5xl font-bold text-white mb-2">
                 {auction.name}
               </h1>
               <div className="flex items-center gap-4 text-white">
@@ -346,7 +335,7 @@ const AuctionView = () => {
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           {!auction.headerImage && (
             <>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">{auction.name}</h1>
+              <h1 className="text-3xl font-bold text-gray-900 mb-4">{auction.name}</h1>
               <div className="flex items-center gap-4 mb-4">
                 <span className={`px-3 py-1 rounded text-sm font-medium ${
                   auctionStatus === 'active' ? 'bg-green-100 text-green-800' :
@@ -368,233 +357,299 @@ const AuctionView = () => {
             <p className="text-gray-700 text-lg mb-6">{auction.description}</p>
           )}
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
             <div className="flex items-start gap-3">
               <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
               <div>
                 <p className="font-medium text-gray-900">Auction Period</p>
-                <p className="text-sm text-gray-600">
-                  {new Date(auction.startDate).toLocaleString('en-US', { 
-                    month: 'short', 
-                    day: 'numeric',
-                    year: 'numeric',
-                    hour: 'numeric',
-                    minute: '2-digit'
-                  })}
-                  {' - '}
-                  {new Date(auction.endDate).toLocaleString('en-US', { 
-                    month: 'short', 
-                    day: 'numeric',
-                    year: 'numeric',
-                    hour: 'numeric',
-                    minute: '2-digit'
-                  })}
+                <p className="text-gray-600">
+                  {new Date(auction.startDate).toLocaleDateString()}
+                  {auction.endDate && ` - ${new Date(auction.endDate).toLocaleDateString()}`}
                 </p>
               </div>
             </div>
             
+            {auction.location && (
+              <div className="flex items-start gap-3">
+                <MapPin className="w-5 h-5 text-gray-400 mt-0.5" />
+                <div>
+                  <p className="font-medium text-gray-900">Location</p>
+                  <p className="text-gray-600">{auction.location}</p>
+                </div>
+              </div>
+            )}
+            
+            {auction.auctioneer && (
+              <div className="flex items-start gap-3">
+                <User className="w-5 h-5 text-gray-400 mt-0.5" />
+                <div>
+                  <p className="font-medium text-gray-900">Auctioneer</p>
+                  <p className="text-gray-600">{auction.auctioneer}</p>
+                </div>
+              </div>
+            )}
+            
             <div className="flex items-start gap-3">
               <Package className="w-5 h-5 text-gray-400 mt-0.5" />
               <div>
-                <p className="font-medium text-gray-900">Total Items</p>
-                <p className="text-sm text-gray-600">{artifacts.length} artifacts</p>
-              </div>
-            </div>
-            
-            <div className="flex items-start gap-3">
-              <TrendingUp className="w-5 h-5 text-gray-400 mt-0.5" />
-              <div>
-                <p className="font-medium text-gray-900">Bid Increment</p>
-                <p className="text-sm text-gray-600">${auction.minimumBidIncrement} minimum</p>
+                <p className="font-medium text-gray-900">Total Lots</p>
+                <p className="text-gray-600">{artifacts.length} items</p>
               </div>
             </div>
           </div>
           
-// Continuing from line 413 - auction.terms section
-          {auction.terms && (
-            <div className="border-t pt-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                <Shield className="w-5 h-5" />
-                Terms & Conditions
-              </h3>
-              <div className="prose prose-sm text-gray-600 max-w-none">
-                {auction.terms.split('\n').map((paragraph, index) => (
-                  <p key={index} className="mb-2">{paragraph}</p>
-                ))}
+          {/* Auction Rules */}
+          {auctionStatus === 'active' && (
+            <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
+                <div>
+                  <p className="font-medium text-blue-900 mb-1">Bidding Rules</p>
+                  <ul className="text-sm text-blue-800 space-y-1">
+                    <li>• Minimum bid increment: 5% of current bid</li>
+                    <li>• All bids are final and cannot be retracted</li>
+                    <li>• Winners will be contacted within 24 hours</li>
+                    <li>• Payment must be completed within 7 days</li>
+                  </ul>
+                </div>
               </div>
             </div>
           )}
         </div>
         
-        {/* Artifacts Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {artifacts.map(artifact => {
-            const currentBid = bids[artifact.id]?.bidAmount || 0;
-            const startingBid = artifact.startingBid || artifact.value || 0;
-            const displayBid = currentBid > 0 ? currentBid : startingBid;
-            const hasActiveBid = currentBid > 0;
-            
-            return (
-              <div key={artifact.id} className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
-                <div className="aspect-square bg-gray-100 relative overflow-hidden">
-                  {artifact.images && artifact.images.length > 0 ? (
-                    <img 
-                      src={artifact.images[0]} 
-                      alt={artifact.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-full">
-                      <Package className="w-12 h-12 text-gray-300" />
-                    </div>
-                  )}
-                  {hasActiveBid && (
-                    <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded text-xs font-medium">
-                      Active Bid
-                    </div>
-                  )}
-                </div>
-                
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-900 mb-1">{artifact.name}</h3>
-                  {artifact.manufacturer && (
-                    <p className="text-sm text-gray-600 mb-2">{artifact.manufacturer} {artifact.model}</p>
-                  )}
-                  
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-500">
-                        {hasActiveBid ? 'Current Bid' : 'Starting Bid'}
-                      </span>
-                      <span className="font-bold text-lg text-gray-900">
-                        ${displayBid.toLocaleString()}
-                      </span>
-                    </div>
-                    
-                    {hasActiveBid && (
-                      <div className="text-xs text-gray-500">
-                        by {bids[artifact.id].userName}
+        {/* Artifacts Section */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-gray-900">
+              Auction Lots ({artifacts.length})
+            </h2>
+            <button
+              onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+              className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2"
+            >
+              {viewMode === 'grid' ? <List className="w-4 h-4" /> : <Grid className="w-4 h-4" />}
+            </button>
+          </div>
+          
+          {artifacts.length === 0 ? (
+            <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+              <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-600">No items have been added to this auction yet.</p>
+            </div>
+          ) : viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {artifacts.map((artifact) => (
+                <div key={artifact.id} className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                  <div className="aspect-[4/3] bg-gray-100 relative overflow-hidden">
+                    {artifact.images && artifact.images.length > 0 ? (
+                      <img 
+                        src={artifact.images[0]} 
+                        alt={artifact.name} 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full">
+                        <Package className="w-12 h-12 text-gray-300" />
+                      </div>
+                    )}
+                    {bids[artifact.id] && (
+                      <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded text-sm font-medium">
+                        ${bids[artifact.id].bidAmount.toFixed(2)}
                       </div>
                     )}
                   </div>
                   
-                  {auctionStatus === 'active' ? (
-                    <button
-                      onClick={() => handleBidClick(artifact)}
-                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Gavel className="w-4 h-4" />
-                      Place Bid
-                    </button>
-                  ) : auctionStatus === 'upcoming' ? (
-                    <div className="w-full px-4 py-2 bg-gray-100 text-gray-500 rounded-lg text-center text-sm">
-                      Auction Not Started
+                  <div className="p-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">{artifact.name}</h3>
+                    <p className="text-sm text-gray-600 mb-3">{artifact.manufacturer} - {artifact.year}</p>
+                    
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <p className="text-xs text-gray-500">Current Bid</p>
+                        <p className="text-xl font-bold text-gray-900">
+                          ${bids[artifact.id] ? bids[artifact.id].bidAmount.toFixed(2) : (artifact.startingBid || 0).toFixed(2)}
+                        </p>
+                      </div>
+                      {bids[artifact.id] && (
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500">Bidder</p>
+                          <p className="text-sm font-medium text-gray-700">{bids[artifact.id].bidderName}</p>
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <div className="w-full px-4 py-2 bg-gray-100 text-gray-500 rounded-lg text-center text-sm">
-                      Auction Ended
-                    </div>
-                  )}
+                    
+                    {auctionStatus === 'active' && (
+                      <button
+                        onClick={() => {
+                          setSelectedArtifact(artifact);
+                          setShowBidModal(true);
+                        }}
+                        className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Gavel className="w-4 h-4" />
+                        Place Bid
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {artifacts.map((artifact) => (
+                <div key={artifact.id} className="bg-white rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow">
+                  <div className="flex items-center gap-4">
+                    <div className="w-24 h-24 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                      {artifact.images && artifact.images.length > 0 ? (
+                        <img 
+                          src={artifact.images[0]} 
+                          alt={artifact.name} 
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center h-full">
+                          <Package className="w-8 h-8 text-gray-300" />
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-gray-900">{artifact.name}</h3>
+                      <p className="text-sm text-gray-600">{artifact.manufacturer} - {artifact.year}</p>
+                      {artifact.description && (
+                        <p className="text-sm text-gray-500 mt-1 line-clamp-2">{artifact.description}</p>
+                      )}
+                    </div>
+                    
+                    <div className="text-right">
+                      <p className="text-xs text-gray-500">Current Bid</p>
+                      <p className="text-xl font-bold text-gray-900">
+                        ${bids[artifact.id] ? bids[artifact.id].bidAmount.toFixed(2) : (artifact.startingBid || 0).toFixed(2)}
+                      </p>
+                      {bids[artifact.id] && (
+                        <p className="text-xs text-gray-500 mt-1">by {bids[artifact.id].bidderName}</p>
+                      )}
+                    </div>
+                    
+                    {auctionStatus === 'active' && (
+                      <button
+                        onClick={() => {
+                          setSelectedArtifact(artifact);
+                          setShowBidModal(true);
+                        }}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                      >
+                        <Gavel className="w-4 h-4" />
+                        Place Bid
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
-      
+
       {/* Bid Modal */}
       {showBidModal && selectedArtifact && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="p-6">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">Place Your Bid</h3>
-                  <p className="text-gray-600 mt-1">{selectedArtifact.name}</p>
-                </div>
-                <button
-                  onClick={() => setShowBidModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 animate-fade-in-up">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-900">Place Your Bid</h3>
+              <button
+                onClick={() => {
+                  setShowBidModal(false);
+                  setSelectedArtifact(null);
+                  setBidAmount('');
+                }}
+                className="p-1 hover:bg-gray-100 rounded"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            
+            <div className="mb-4">
+              <h4 className="font-medium text-gray-900">{selectedArtifact.name}</h4>
+              <p className="text-sm text-gray-600">{selectedArtifact.manufacturer} - {selectedArtifact.year}</p>
+            </div>
+            
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-600">Current Bid:</span>
+                <span className="font-bold text-lg">
+                  ${bids[selectedArtifact.id] ? bids[selectedArtifact.id].bidAmount.toFixed(2) : (selectedArtifact.startingBid || 0).toFixed(2)}
+                </span>
               </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Current Bid
-                  </label>
-                  <div className="text-lg font-semibold text-gray-900">
-                    ${(bids[selectedArtifact.id]?.bidAmount || selectedArtifact.startingBid || selectedArtifact.value || 0).toLocaleString()}
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Your Bid Amount
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                    <input
-                      type="number"
-                      value={bidAmount}
-                      onChange={(e) => setBidAmount(e.target.value)}
-                      className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Enter your bid"
-                      step={auction.minimumBidIncrement}
-                      min={Math.max(
-                        selectedArtifact.startingBid || selectedArtifact.value || 0,
-                        (bids[selectedArtifact.id]?.bidAmount || 0) + auction.minimumBidIncrement
-                      )}
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Minimum bid increment: ${auction.minimumBidIncrement}
-                  </p>
-                </div>
-                
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5" />
-                    <div className="text-sm text-blue-800">
-                      <p className="font-medium mb-1">Bid Information</p>
-                      <ul className="space-y-1 text-xs">
-                        <li>• All bids are final and cannot be retracted</li>
-                        <li>• You will be notified if you are outbid</li>
-                        <li>• Winner will be contacted at auction end</li>
-                      </ul>
-                    </div>
-                  </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Minimum Bid:</span>
+                <span className="font-medium">
+                  ${(bids[selectedArtifact.id] ? bids[selectedArtifact.id].bidAmount * 1.05 : (selectedArtifact.startingBid || 0)).toFixed(2)}
+                </span>
+              </div>
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Your Bid Amount
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                <input
+                  type="number"
+                  value={bidAmount}
+                  onChange={(e) => setBidAmount(e.target.value)}
+                  className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="0.00"
+                  step="0.01"
+                  min={(bids[selectedArtifact.id] ? bids[selectedArtifact.id].bidAmount * 1.05 : (selectedArtifact.startingBid || 0)).toFixed(2)}
+                />
+              </div>
+            </div>
+            
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5" />
+                <div className="text-sm text-blue-800">
+                  <p className="font-medium mb-1">Bid Information</p>
+                  <ul className="space-y-1 text-xs">
+                    <li>• All bids are final and cannot be retracted</li>
+                    <li>• You will be notified if you are outbid</li>
+                    <li>• Winner will be contacted at auction end</li>
+                  </ul>
                 </div>
               </div>
-              
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={() => setShowBidModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-                  disabled={bidding}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handlePlaceBid}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  disabled={bidding || !bidAmount}
-                >
-                  {bidding ? (
-                    <>
-                      <Clock className="w-4 h-4 animate-spin" />
-                      Placing Bid...
-                    </>
-                  ) : (
-                    <>
-                      <Gavel className="w-4 h-4" />
-                      Place Bid
-                    </>
-                  )}
-                </button>
-              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowBidModal(false);
+                  setSelectedArtifact(null);
+                  setBidAmount('');
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                disabled={bidding}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePlaceBid}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                disabled={bidding || !bidAmount}
+              >
+                {bidding ? (
+                  <>
+                    <Clock className="w-4 h-4 animate-spin" />
+                    Placing Bid...
+                  </>
+                ) : (
+                  <>
+                    <Gavel className="w-4 h-4" />
+                    Place Bid
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

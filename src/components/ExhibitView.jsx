@@ -280,12 +280,20 @@ const ExhibitView = () => {
             <h2 className="text-2xl font-bold text-gray-900">
               Artifacts in this Exhibit ({artifacts.length})
             </h2>
-            <button
-              onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-              className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2"
-            >
-              {viewMode === 'grid' ? <List className="w-4 h-4" /> : <Grid className="w-4 h-4" />}
-            </button>
+<div className="flex bg-gray-100 rounded-lg p-1">
+  <button
+    onClick={() => setViewMode('grid')}
+    className={`p-2 rounded ${viewMode === 'grid' ? 'bg-white shadow-sm' : ''}`}
+  >
+    <Grid className="w-4 h-4" />
+  </button>
+  <button
+    onClick={() => setViewMode('list')}
+    className={`p-2 rounded ${viewMode === 'list' ? 'bg-white shadow-sm' : ''}`}
+  >
+    <List className="w-4 h-4" />
+  </button>
+</div>
           </div>
           
           {artifacts.length === 0 ? (
