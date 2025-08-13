@@ -5,6 +5,7 @@ import ExhibitView from './components/ExhibitView';
 import AuctionView from './components/auctions/AuctionView'; // Add this import
 import './App.css';
 import './components/gallery/gallery.css';
+import './mobile.css';
 
 function App() {
   return (

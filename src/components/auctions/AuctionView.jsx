@@ -290,11 +290,11 @@ const AuctionView = () => {
 
       {/* Header Image - Matching ExhibitView height */}
       {auction.headerImage && (
-        <div className="relative h-80 md:h-[28rem] bg-gray-900 overflow-hidden">
+        <div className="relative h-64 sm:h-80 md:h-[28rem] bg-gray-900 overflow-hidden">
           <img 
             src={auction.headerImage} 
             alt={auction.name}
-            className="w-full h-full object-cover opacity-90"
+            className="w-full h-full object-cover sm:object-cover object-contain opacity-90"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
           <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">

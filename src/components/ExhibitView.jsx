@@ -114,11 +114,11 @@ const ExhibitView = () => {
           <div className="bg-white rounded-lg shadow-lg overflow-hidden">
             {/* Show exhibit image if available */}
             {exhibit.headerImage && (
-              <div className="relative h-48 bg-gray-900 overflow-hidden">
+              <div className="relative h-64 sm:h-80 md:h-[28rem] bg-gray-900 overflow-hidden">
                 <img 
                   src={exhibit.headerImage} 
                   alt={exhibit.name}
-                  className="w-full h-full object-cover opacity-70"
+                  className="w-full h-full object-cover sm:object-cover object-contain opacity-90"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
               </div>

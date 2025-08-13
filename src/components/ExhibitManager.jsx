@@ -276,11 +276,11 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
           {exhibits.map(exhibit => (
             <div key={exhibit.id} className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
 {exhibit.headerImage && (
-  <div className="h-48 overflow-hidden relative">
+  <div className="h-48 sm:h-48 overflow-hidden relative bg-gray-100">
     <img
       src={exhibit.headerImage}
       alt={exhibit.name}
-      className="w-full h-full object-cover"
+      className="w-full h-full object-contain sm:object-cover"
     />
     {exhibit.featured && (
       <span className="absolute top-2 left-2 px-2 py-1 bg-yellow-500 text-white text-xs font-medium rounded">

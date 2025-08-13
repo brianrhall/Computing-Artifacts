@@ -317,11 +317,11 @@ const AuctionManager = ({ user, isAdmin, db, collection, doc, getDocs, getDoc, a
             return (
               <div key={auction.id} className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
 {auction.headerImage && (
-  <div className="h-48 overflow-hidden relative">
+  <div className="h-48 sm:h-48 overflow-hidden relative bg-gray-100">
     <img
       src={auction.headerImage}
       alt={auction.name}
-      className="w-full h-full object-cover"
+      className="w-full h-full object-contain sm:object-cover"
     />
     {auction.featured && (
       <span className="absolute top-2 left-2 px-2 py-1 bg-yellow-500 text-white text-xs font-medium rounded">
