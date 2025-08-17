@@ -27,27 +27,27 @@ const ArtifactGridView = ({
           className="bg-white rounded-lg shadow-sm hover:shadow-lg transition-all cursor-pointer"
           onClick={() => onArtifactClick(artifact)}
         >
-          <div className="aspect-w-16 aspect-h-9 relative bg-gray-100 rounded-t-lg overflow-hidden">
-            {artifact.images && artifact.images.length > 0 ? (
-              <>
-                <img 
-                  src={artifact.images[0]} 
-                  alt={artifact.name}
-                  className="object-cover w-full h-48"
-                />
-                {artifact.images.length > 1 && (
-                  <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
-                    <Camera className="w-3 h-3" />
-                    {artifact.images.length}
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="flex items-center justify-center h-48 text-gray-400">
-                <Camera className="w-12 h-12" />
-              </div>
-            )}
-          </div>
+<div className="aspect-[4/3] relative bg-gray-100 rounded-t-lg overflow-hidden">
+  {artifact.images && artifact.images.length > 0 ? (
+    <>
+      <img 
+        src={artifact.images[0]} 
+        alt={artifact.name}
+        className="absolute inset-0 w-full h-full object-cover"
+      />
+      {artifact.images.length > 1 && (
+        <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+          <Camera className="w-3 h-3" />
+          {artifact.images.length}
+        </div>
+      )}
+    </>
+  ) : (
+    <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+      <Camera className="w-12 h-12" />
+    </div>
+  )}
+</div>
           
           <div className="p-4">
             <div className="flex justify-between items-start mb-2">

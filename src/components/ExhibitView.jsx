@@ -412,7 +412,7 @@ const ExhibitView = () => {
                   <img 
                     src={selectedArtifact.images[0]} 
                     alt={selectedArtifact.name}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                   />
                 </div>
               )}

@@ -440,7 +440,7 @@ const AuctionView = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {artifacts.map((artifact) => (
                 <div key={artifact.id} className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
-                  <div className="aspect-[4/3] bg-gray-100 relative overflow-hidden">
+                  <div className="aspect-[4/3] bg-gray-100 relative overflow-hidden rounded-t-lg">
                     {artifact.images && artifact.images.length > 0 ? (
                       <img 
                         src={artifact.images[0]} 
