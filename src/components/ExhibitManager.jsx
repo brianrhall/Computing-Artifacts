@@ -6,7 +6,7 @@ import {
 import { db, storage } from '../firebase';
 import { 
   collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, 
-  query, orderBy, where 
+  query, orderBy, where, writeBatch, arrayUnion, arrayRemove
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useNavigate } from 'react-router-dom';
@@ -47,7 +47,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
   // Load exhibits from Firestore
   useEffect(() => {
     loadExhibits();
-  }, []);
+  }, [isAdmin]);
 
   const loadExhibits = async () => {
     try {
@@ -59,10 +59,25 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
         exhibitsData.push({ id: doc.id, ...doc.data() });
       });
       
-      setExhibits(exhibitsData);
+      setExhibits(isAdmin ? exhibitsData : exhibitsData.filter(e => e.published !== false));
     } catch (error) {
       console.error('Error loading exhibits:', error);
     }
+  };
+
+    // Sync each affected artifact's visibility against one exhibit's state
+  const syncArtifactVisibility = async (exhibitId, prevIds = [], nextIds = [], isPublished = false) => {
+    const touched = [...new Set([...prevIds, ...nextIds])];
+    if (touched.length === 0) return;
+
+    const batch = writeBatch(db);
+    touched.forEach(artifactId => {
+      const visible = isPublished && nextIds.includes(artifactId);
+      batch.update(doc(db, 'artifacts', artifactId), {
+        publishedExhibitIds: visible ? arrayUnion(exhibitId) : arrayRemove(exhibitId)
+      });
+    });
+    await batch.commit();
   };
 
   // Handle header image upload

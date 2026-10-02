@@ -22,7 +22,7 @@ const GalleryTabs = ({ activeTab, setActiveTab, isAdmin }) => {
       id: 'artifacts',
       label: 'Artifacts',
       icon: Package,
-      visible: true
+      visible: isAdmin
     },
     {
       id: 'exhibits',

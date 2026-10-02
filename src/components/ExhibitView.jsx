@@ -318,11 +318,10 @@ const ExhibitView = () => {
               <table className="w-full">
                 <thead className="bg-gray-50 border-b">
                   <tr>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Artifact</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Manufacturer</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Year</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Category</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Condition</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Artifact</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Area/Case</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Year</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Display Group</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -348,20 +347,9 @@ const ExhibitView = () => {
                           <span className="font-medium">{artifact.name}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-gray-600">{artifact.manufacturer}</td>
-                      <td className="px-4 py-3 text-gray-600">{artifact.year || '-'}</td>
-                      <td className="px-4 py-3 text-gray-600">{artifact.category}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          artifact.condition === 'Mint' || artifact.condition === 'Excellent' 
-                            ? 'bg-green-100 text-green-800'
-                            : artifact.condition === 'Good' || artifact.condition === 'Working'
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {artifact.condition || 'Unknown'}
-                        </span>
-                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{artifact.location || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{artifact.year || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{artifact.displayGroup || '-'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -426,30 +414,10 @@ const ExhibitView = () => {
                 )}
                 
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  {selectedArtifact.condition && (
-                    <div>
-                      <p className="text-gray-500">Condition</p>
-                      <p className="font-medium">{selectedArtifact.condition}</p>
-                    </div>
-                  )}
                   {selectedArtifact.location && (
                     <div>
                       <p className="text-gray-500">Location</p>
                       <p className="font-medium">{selectedArtifact.location}</p>
-                    </div>
-                  )}
-                  {selectedArtifact.acquisitionDate && (
-                    <div>
-                      <p className="text-gray-500">Acquired</p>
-                      <p className="font-medium">
-                        {new Date(selectedArtifact.acquisitionDate).toLocaleDateString()}
-                      </p>
-                    </div>
-                  )}
-                  {selectedArtifact.value && (
-                    <div>
-                      <p className="text-gray-500">Value</p>
-                      <p className="font-medium">${selectedArtifact.value.toLocaleString()}</p>
                     </div>
                   )}
                 </div>

@@ -22,6 +22,7 @@ const DisplayGroupsManager = ({ user, isAdmin, db, collection, doc, getDocs, add
 
   const colorOptions = [
     { name: 'Blue', value: '#3B82F6' },
+    { name: 'Cyan', value: '#06B6D4' },
     { name: 'Purple', value: '#8B5CF6' },
     { name: 'Green', value: '#10B981' },
     { name: 'Orange', value: '#F28C28' },

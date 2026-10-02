@@ -7,7 +7,7 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
-const useArtifacts = (user) => {
+const useArtifacts = (user, isAdmin) => {
   const [artifacts, setArtifacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -139,8 +139,14 @@ const useArtifacts = (user) => {
 
   // Load artifacts on mount
   useEffect(() => {
+    console.log('useArtifacts isAdmin:', isAdmin);
+    if (!isAdmin) {
+      setArtifacts([]);
+      setLoading(false);
+      return;
+    }
     loadArtifacts();
-  }, [loadArtifacts]);
+  }, [isAdmin, loadArtifacts]);
 
   return {
     artifacts,

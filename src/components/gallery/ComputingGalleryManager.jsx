@@ -28,6 +28,7 @@ const ComputingGalleryManager = () => {
   // Authentication states
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
   const [showLoginForm, setShowLoginForm] = useState(false);
   
   // App states
@@ -60,7 +61,7 @@ const ComputingGalleryManager = () => {
     saveArtifact, 
     deleteArtifact, 
     uploadImages 
-  } = useArtifacts(user);
+  } = useArtifacts(user, isAdmin);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -79,8 +80,8 @@ const ComputingGalleryManager = () => {
     acquisitionDate: '',
     donor: '',
     notes: '',
-    taskStatus: 'To Do',
-    taskPriority: 'Medium',
+    taskStatus: 'None',
+    taskPriority: 'None',
     taskNotes: '',
     images: []
   });
@@ -139,9 +140,11 @@ const ComputingGalleryManager = () => {
           displayName: userData.displayName || user.displayName || user.email
         });
         setIsAdmin(adminStatus);
+        setAuthChecked(true); 
       } else {
         setUser(null);
         setIsAdmin(false);
+        setAuthChecked(true); 
       }
     });
 
@@ -153,12 +156,24 @@ const ComputingGalleryManager = () => {
     // Parse URL parameters
     const params = new URLSearchParams(location.search);
     const tabParam = params.get('tab');
-    
+
+    const allowedTabs = isAdmin
+      ? ['artifacts', 'exhibits', 'displayGroups', 'auctions']
+      : ['exhibits', 'auctions'];
+
     // Set active tab based on URL parameter
-    if (tabParam && ['artifacts', 'exhibits', 'displayGroups', 'auctions'].includes(tabParam)) {
+    if (tabParam && allowedTabs.includes(tabParam)) {
       setActiveTab(tabParam);
     }
-  }, [location.search]);
+  }, [location.search, isAdmin]);
+
+  // Regular users reach artifacts only through a published exhibit
+  useEffect(() => {
+    if (authChecked && !isAdmin && (activeTab === 'artifacts' || activeTab === 'displayGroups')) {
+      setActiveTab('exhibits');
+      navigate('/?tab=exhibits', { replace: true });
+    }
+  }, [authChecked, isAdmin, activeTab, navigate]);
 
   // Filter artifacts based on search and filters
   useEffect(() => {
@@ -280,8 +295,8 @@ const ComputingGalleryManager = () => {
       acquisitionDate: '',
       donor: '',
       notes: '',
-      taskStatus: 'To Do',
-      taskPriority: 'Medium',
+      taskStatus: 'None',
+      taskPriority: 'None',
       taskNotes: '',
       images: []
     });
@@ -307,8 +322,12 @@ const ComputingGalleryManager = () => {
       acquisitionDate: artifact.acquisitionDate || '',
       donor: artifact.donor || artifact.source || '',
       notes: artifact.notes || '',
-      taskStatus: artifact.taskStatus || artifact.status || 'To Do',
-      taskPriority: artifact.taskPriority || artifact.priority || 'Medium',
+      taskStatus: artifact.taskStatus !== undefined
+        ? (artifact.taskStatus || 'None')
+        : (artifact.status || 'None'),
+      taskPriority: artifact.taskPriority !== undefined
+        ? (artifact.taskPriority || 'None')
+        : (artifact.priority || 'None'),
       taskNotes: artifact.taskNotes || artifact.todos || '',
       images: artifact.images || []
     });
@@ -404,7 +423,7 @@ const ComputingGalleryManager = () => {
           isAdmin={isAdmin} 
         />
 
-        {activeTab === 'artifacts' ? (
+        {activeTab === 'artifacts' && isAdmin ? (
           <>
             <FilterControls
               searchTerm={searchTerm}
