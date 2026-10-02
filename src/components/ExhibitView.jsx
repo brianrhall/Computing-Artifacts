@@ -2,18 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
   Calendar, MapPin, User, ArrowLeft, Grid, List, 
-  Camera, Clock, DollarSign, Shield, Eye, Map, X, AlertCircle
+  Camera, Clock, DollarSign, Shield, Eye, Map, X,
+  ChevronDown, ChevronRight
 } from 'lucide-react';
 import { db, auth } from '../firebase';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 
 const ExhibitView = () => {
-  const { exhibitId } = useParams();
+  const {exhibitId } = useParams();
   const [exhibit, setExhibit] = useState(null);
   const [artifacts, setArtifacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('grid');
+  const [filterGroup, setFilterGroup] = useState('all');
+  const [collapsedAreas, setCollapsedAreas] = useState(new Set());
   const [selectedArtifact, setSelectedArtifact] = useState(null);
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -112,27 +115,45 @@ const ExhibitView = () => {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="max-w-md w-full mx-auto p-6">
           <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-            {/* Show exhibit image if available - Scaled to fit card */}
+            {/* Show exhibit image if available */}
             {exhibit.headerImage && (
-              <div className="relative h-64 bg-gray-900 overflow-hidden">
+              <div className="relative h-64 sm:h-80 md:h-[28rem] bg-gray-900 overflow-hidden">
                 <img 
                   src={exhibit.headerImage} 
                   alt={exhibit.name}
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-cover sm:object-cover object-contain opacity-90"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
               </div>
             )}
             
             <div className="p-6 text-center">
-              <Shield className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <Shield className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <h2 className="text-2xl font-bold text-gray-900 mb-2">{exhibit.name}</h2>
               <p className="text-gray-600 mb-4">This exhibit is currently being prepared.</p>
-              <p className="text-sm text-gray-500">
-                {exhibit.startDate && new Date(exhibit.startDate).toLocaleDateString()}
-                {exhibit.endDate && ` - ${new Date(exhibit.endDate).toLocaleDateString()}`}
-              </p>
-              <Link to="/?tab=exhibits" className="mt-6 inline-flex items-center gap-2 text-blue-600 hover:text-blue-800">
+              
+              {/* Show date range if available */}
+              {(exhibit.startDate || exhibit.endDate) && (
+                <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                  <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
+                    <Calendar className="w-4 h-4 text-gray-400" />
+                    <span>
+                      {exhibit.startDate && new Date(exhibit.startDate).toLocaleDateString('en-US', { 
+                        month: 'long', 
+                        day: 'numeric', 
+                        year: 'numeric' 
+                      })}
+                      {exhibit.endDate && ` - ${new Date(exhibit.endDate).toLocaleDateString('en-US', { 
+                        month: 'long', 
+                        day: 'numeric', 
+                        year: 'numeric' 
+                      })}`}
+                    </span>
+                  </div>
+                </div>
+              )}
+              
+              <Link to="/?tab=exhibits" className="text-blue-600 hover:text-blue-800 flex items-center gap-2 justify-center">
                 <ArrowLeft className="w-4 h-4" />
                 Back to Exhibits
               </Link>
@@ -143,32 +164,68 @@ const ExhibitView = () => {
     );
   }
 
+  // Show admin preview banner if exhibit is unpublished and user is admin
+  const showAdminPreview = !exhibit.published && isAdmin;
+
+  // Display groups actually present in this exhibit
+  const displayGroups = [...new Set(
+    artifacts.map(a => a.displayGroup).filter(Boolean)
+  )].sort();
+
+  // Artifacts remaining after the display group filter
+  const visibleArtifacts = filterGroup === 'all'
+    ? artifacts
+    : artifacts.filter(a => a.displayGroup === filterGroup);
+
+  // Bucket the visible artifacts by area/case
+  const artifactsByArea = visibleArtifacts.reduce((acc, a) => {
+    const area = a.location || 'Unassigned';
+    (acc[area] = acc[area] || []).push(a);
+    return acc;
+  }, {});
+
+  // Area headings, naturally sorted, with Unassigned pushed to the end
+  const areaNames = Object.keys(artifactsByArea).sort((a, b) => {
+    if (a === 'Unassigned') return 1;
+    if (b === 'Unassigned') return -1;
+    return a.localeCompare(b, undefined, { numeric: true });
+  });
+
+  const toggleArea = (area) => {
+    setCollapsedAreas(prev => {
+      const next = new Set(prev);
+      next.has(area) ? next.delete(area) : next.add(area);
+      return next;
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Admin warning bar */}
-      {isAdmin && !exhibit.published && (
-        <div className="bg-yellow-100 border-b border-yellow-200">
-          <div className="max-w-7xl mx-auto px-4 py-2">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-yellow-600" />
-              <span className="text-sm text-yellow-800">This exhibit is unpublished and only visible to administrators.</span>
+      {/* Admin Preview Banner */}
+      {showAdminPreview && (
+        <div className="bg-yellow-50 border-b border-yellow-200">
+          <div className="max-w-7xl mx-auto px-6 py-3">
+            <div className="flex items-center gap-2 text-sm text-yellow-800">
+              <Eye className="w-4 h-4" />
+              <span className="font-medium">Admin Preview:</span>
+              <span>This exhibit is unpublished and only visible to administrators.</span>
             </div>
           </div>
         </div>
       )}
 
-      {/* Header Image - FIXED consistent scaling */}
+      {/* Header Image - Taller banner style */}
       {exhibit.headerImage && (
-        <div className="relative h-64 sm:h-80 md:h-[28rem] bg-gray-900 overflow-hidden">
+        <div className="relative h-80 md:h-[28rem] bg-gray-900 overflow-hidden">
           <img 
             src={exhibit.headerImage} 
             alt={exhibit.name}
             className="w-full h-full object-cover opacity-90"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-          <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 md:p-8">
+          <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
             <div className="max-w-7xl mx-auto">
-              <h1 className="text-2xl sm:text-3xl md:text-5xl font-bold text-white mb-2">
+              <h1 className="text-3xl md:text-5xl font-bold text-white mb-2">
                 {exhibit.name}
               </h1>
               {exhibit.featured && (
@@ -258,19 +315,33 @@ const ExhibitView = () => {
             <h2 className="text-2xl font-bold text-gray-900">
               Artifacts in this Exhibit ({artifacts.length})
             </h2>
-            <div className="flex bg-gray-100 rounded-lg p-1">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-2 rounded ${viewMode === 'grid' ? 'bg-white shadow-sm' : ''}`}
-              >
-                <Grid className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-2 rounded ${viewMode === 'list' ? 'bg-white shadow-sm' : ''}`}
-              >
-                <List className="w-4 h-4" />
-              </button>
+            <div className="flex items-center gap-3">
+              {displayGroups.length > 0 && (
+                <select
+                  value={filterGroup}
+                  onChange={(e) => setFilterGroup(e.target.value)}
+                  className="px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All display groups</option>
+                  {displayGroups.map(g => (
+                    <option key={g} value={g}>{g}</option>
+                  ))}
+                </select>
+              )}
+              <div className="flex bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-2 rounded ${viewMode === 'grid' ? 'bg-white shadow-sm' : ''}`}
+                >
+                  <Grid className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-2 rounded ${viewMode === 'list' ? 'bg-white shadow-sm' : ''}`}
+                >
+                  <List className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
           
@@ -280,43 +351,74 @@ const ExhibitView = () => {
               <p className="text-gray-600">No artifacts have been added to this exhibit yet.</p>
             </div>
           ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {artifacts.map(artifact => (
-                <div 
-                  key={artifact.id}
-                  className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                  onClick={() => setSelectedArtifact(artifact)}
-                >
-                  <div className="aspect-[4/3] bg-gray-100 rounded-t-lg overflow-hidden">
-                    {artifact.images && artifact.images.length > 0 ? (
-                      <img 
-                        src={artifact.images[0]} 
-                        alt={artifact.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Camera className="w-12 h-12 text-gray-300" />
+            <div className="space-y-8">
+              {areaNames.length === 0 ? (
+                <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+                  <p className="text-gray-600">No artifacts in this display group.</p>
+                </div>
+              ) : areaNames.map(area => {
+                const isCollapsed = collapsedAreas.has(area);
+                return (
+                  <div key={area}>
+                    <button
+                      onClick={() => toggleArea(area)}
+                      className="w-full flex items-center gap-2 text-left mb-3 pb-2 border-b group"
+                      aria-expanded={!isCollapsed}
+                    >
+                      {isCollapsed ? (
+                        <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-gray-600" />
+                      ) : (
+                        <ChevronDown className="w-5 h-5 text-gray-400 group-hover:text-gray-600" />
+                      )}
+                      <h3 className="text-lg font-semibold text-gray-900">{area}</h3>
+                      <span className="text-sm font-normal text-gray-500">
+                        ({artifactsByArea[area].length})
+                      </span>
+                    </button>
+
+                    {!isCollapsed && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {artifactsByArea[area].map((artifact) => (
+                          <div 
+                            key={artifact.id} 
+                            className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                            onClick={() => setSelectedArtifact(artifact)}
+                          >
+                            {artifact.images && artifact.images.length > 0 ? (
+                              <div className="aspect-[3/4] bg-gray-100 rounded-t-lg overflow-hidden">
+                                <img 
+                                  src={artifact.images[0]} 
+                                  alt={artifact.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            ) : (
+                              <div className="aspect-[3/4] bg-gray-100 rounded-t-lg flex items-center justify-center">
+                                <Camera className="w-12 h-12 text-gray-300" />
+                              </div>
+                            )}
+                            
+                            <div className="p-4">
+                              <h3 className="font-semibold text-gray-900 mb-1">{artifact.name}</h3>
+                              {artifact.manufacturer && (
+                                <p className="text-sm text-gray-600 mb-1">{artifact.manufacturer}</p>
+                              )}
+                              {artifact.year && (
+                                <p className="text-sm text-gray-500">{artifact.year}</p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
-                  
-                  <div className="p-4">
-                    <h3 className="font-semibold text-gray-900 mb-1">{artifact.name}</h3>
-                    <p className="text-sm text-gray-600">
-                      {artifact.manufacturer} {artifact.model && `- ${artifact.model}`}
-                    </p>
-                    {artifact.year && (
-                      <p className="text-sm text-gray-500 mt-1">{artifact.year}</p>
-                    )}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="bg-white rounded-lg shadow-sm overflow-hidden">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b">
+                <thead className="bg-gray-50">
                   <tr>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Artifact</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Area/Case</th>
@@ -325,9 +427,9 @@ const ExhibitView = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {artifacts.map(artifact => (
+                  {visibleArtifacts.map((artifact) => (
                     <tr 
-                      key={artifact.id}
+                      key={artifact.id} 
                       className="hover:bg-gray-50 cursor-pointer"
                       onClick={() => setSelectedArtifact(artifact)}
                     >
@@ -337,14 +439,19 @@ const ExhibitView = () => {
                             <img 
                               src={artifact.images[0]} 
                               alt={artifact.name}
-                              className="w-10 h-10 rounded object-cover"
+                              className="w-12 h-12 object-cover rounded"
                             />
                           ) : (
-                            <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center">
-                              <Camera className="w-5 h-5 text-gray-400" />
+                            <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center">
+                              <Camera className="w-5 h-5 text-gray-300" />
                             </div>
                           )}
-                          <span className="font-medium">{artifact.name}</span>
+                          <div>
+                            <p className="font-medium text-gray-900">{artifact.name}</p>
+                            {artifact.manufacturer && (
+                              <p className="text-sm text-gray-600">{artifact.manufacturer}</p>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">{artifact.location || '-'}</td>
@@ -358,7 +465,7 @@ const ExhibitView = () => {
           )}
         </div>
       </div>
-      
+
       {/* Artifact Detail Modal */}
       {selectedArtifact && (
         <div 
