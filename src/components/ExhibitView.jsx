@@ -16,7 +16,7 @@ const ExhibitView = () => {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('grid');
   const [filterGroup, setFilterGroup] = useState('all');
-  const [collapsedAreas, setCollapsedAreas] = useState(new Set());
+  const [expandedAreas, setExpandedAreas] = useState(new Set());
   const [selectedArtifact, setSelectedArtifact] = useState(null);
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -192,9 +192,13 @@ const ExhibitView = () => {
   });
 
   const toggleArea = (area) => {
-    setCollapsedAreas(prev => {
+    setExpandedAreas(prev => {
       const next = new Set(prev);
-      next.has(area) ? next.delete(area) : next.add(area);
+      if (next.has(area)) {
+        next.delete(area);
+      } else {
+        next.add(area);
+      }
       return next;
     });
   };
@@ -357,7 +361,7 @@ const ExhibitView = () => {
                   <p className="text-gray-600">No artifacts in this display group.</p>
                 </div>
               ) : areaNames.map(area => {
-                const isCollapsed = collapsedAreas.has(area);
+                const isCollapsed = !expandedAreas.has(area);
                 return (
                   <div key={area}>
                     <button
