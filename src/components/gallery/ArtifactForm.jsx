@@ -134,6 +134,13 @@ const ArtifactForm = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {renderFormField('Acquisition Date', 'acquisitionDate', 'date')}
               {renderFormField('Donor/Source', 'donor')}
+            </div>
+          </div>
+
+          {/* Exhibit Details Section */}
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Exhibit Details</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {renderFormField('Location', 'location')}
               {isAdmin && renderFormField('Estimated Value', 'estimatedValue', 'text', { 
                 placeholder: 'e.g., 500 or 1000' 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, Edit2, Trash2, X, Save, Upload, Image as ImageIcon, 
-  Grid, List, Eye, Calendar, MapPin, Users, CheckCircle, DollarSign
+  Grid, List, Eye, Calendar, MapPin, Users, CheckCircle, DollarSign, GripVertical
 } from 'lucide-react';
 import { db, storage } from '../firebase';
 import { 
@@ -22,6 +22,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadingGalleryLayout, setUploadingGalleryLayout] = useState(false);
+  const [uploadingExhibitPicture, setUploadingExhibitPicture] = useState(false);
   const [viewMode, setViewMode] = useState('grid');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successAction, setSuccessAction] = useState('created');
@@ -38,6 +39,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
     location: '',
     curator: '',
     headerImage: '',
+    exhibitPicture: '',
     galleryLayoutImage: '',
     artifactIds: [],
     featured: false,
@@ -126,6 +128,29 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
     }
   };
 
+  // Handle exhibit picture upload
+  const handleExhibitPictureUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    setUploadingExhibitPicture(true);
+    
+    try {
+      const timestamp = Date.now();
+      const filename = `exhibits/pictures/${timestamp}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+      const storageRef = ref(storage, filename);
+      const snapshot = await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      
+      setFormData(prev => ({ ...prev, exhibitPicture: downloadURL }));
+    } catch (error) {
+      console.error('Error uploading exhibit picture:', error);
+      showErrorModal('Error uploading exhibit picture. Please try again.');
+    } finally {
+      setUploadingExhibitPicture(false);
+    }
+  };
+
   // Handle exhibit save
   const handleSave = async () => {
     if (!formData.name || !formData.description) {
@@ -143,6 +168,12 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
       
       // Capture whether this is an update or create before resetting
       const isUpdate = !!editingId;
+
+      const nextIds = exhibitData.artifactIds;
+      const prevIds = editingId
+        ? (exhibits.find(e => e.id === editingId)?.artifactIds || [])
+        : [];
+      let savedId = editingId;
       
       if (editingId) {
         await updateDoc(doc(db, 'exhibits', editingId), exhibitData);
@@ -173,6 +204,8 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this exhibit?')) {
       try {
+        const exhibit = exhibits.find(e => e.id === id);                              
+        await syncArtifactVisibility(id, exhibit?.artifactIds || [], [], false);      
         await deleteDoc(doc(db, 'exhibits', id));
         await loadExhibits();
       } catch (error) {
@@ -192,14 +225,17 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
       location: exhibit.location || '',
       curator: exhibit.curator || '',
       headerImage: exhibit.headerImage || '',
+      exhibitPicture: exhibit.exhibitPicture || '',
       galleryLayoutImage: exhibit.galleryLayoutImage || '',
       artifactIds: exhibit.artifactIds || [],
       featured: exhibit.featured || false,
       published: exhibit.published !== undefined ? exhibit.published : true
     });
     
-    // Load selected artifacts
-    const selected = artifacts.filter(a => exhibit.artifactIds?.includes(a.id));
+    // Load selected artifacts, preserving saved order
+    const selected = (exhibit.artifactIds || [])
+      .map(id => artifacts.find(a => a.id === id))
+      .filter(Boolean);
     setSelectedArtifacts(selected);
     
     setEditingId(exhibit.id);
@@ -216,6 +252,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
       location: '',
       curator: '',
       headerImage: '',
+      exhibitPicture: '',
       galleryLayoutImage: '',
       artifactIds: [],
       featured: false,
@@ -225,6 +262,20 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
     setEditingId(null);
     setShowForm(false);
     setShowArtifactSelector(false);
+  };
+
+  // Reorder artifacts within the exhibit
+  const [dragIndex, setDragIndex] = useState(null);
+
+  const handleDragEnter = (index) => {
+    if (dragIndex === null || dragIndex === index) return;
+    setSelectedArtifacts(prev => {
+      const next = [...prev];
+      const [moved] = next.splice(dragIndex, 1);
+      next.splice(index, 0, moved);
+      return next;
+    });
+    setDragIndex(index);
   };
 
   // Add/remove artifacts from exhibit
@@ -615,6 +666,37 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                         </div>
                       </label>
                     </div>
+
+                    <div className="col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Exhibit Picture
+                    </label>
+                    <div className="space-y-2">
+                      {formData.exhibitPicture && (
+                        <img 
+                          src={formData.exhibitPicture} 
+                          alt="Exhibit" 
+                          className="w-full h-32 object-cover rounded"
+                        />
+                      )}
+                      <label className="block">
+                        <span className="sr-only">Choose exhibit picture</span>
+                        <div className="w-full px-3 py-2 border-2 border-dashed border-gray-300 rounded-lg text-center cursor-pointer hover:border-gray-400 transition-colors">
+                          <Upload className="w-5 h-5 mx-auto mb-1 text-gray-400" />
+                          <span className="text-sm text-gray-600">
+                            {uploadingExhibitPicture ? 'Uploading...' : 'Click to upload'}
+                          </span>
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept="image/*"
+                            onChange={handleExhibitPictureUpload}
+                            disabled={uploadingExhibitPicture}
+                          />
+                        </div>
+                      </label>
+                    </div>
+                  </div>
                   </div>
                 </div>
 
@@ -689,20 +771,55 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                                 )}
                                 <div className="flex-1">
                                   <p className="font-medium text-gray-900">{artifact.name}</p>
-                                  <p className="text-sm text-gray-500">
-                                    {artifact.manufacturer} • {artifact.category}
-                                  </p>
+                                  {artifact.manufacturer && (
+                                    <p className="text-sm text-gray-600">{artifact.manufacturer}</p>
+                                  )}
                                 </div>
-                                {artifact.value && (
-                                  <span className="text-sm font-medium text-green-600">
-                                    ${artifact.value}
-                                  </span>
+                                {artifact.location && (
+                                  <span className="text-xs text-gray-500">{artifact.location}</span>
                                 )}
                               </div>
                             </div>
                           );
                         })}
                       </div>
+                    </div>
+                  )}
+
+                  {selectedArtifacts.length > 0 && (
+                    <div className="mt-3 border rounded-lg divide-y">
+                      <div className="px-3 py-2 bg-gray-50 text-xs font-medium text-gray-600">
+                        Display order — drag to rearrange
+                      </div>
+                      {selectedArtifacts.map((artifact, index) => (
+                        <div
+                          key={artifact.id}
+                          draggable
+                          onDragStart={() => setDragIndex(index)}
+                          onDragEnter={() => handleDragEnter(index)}
+                          onDragOver={(e) => e.preventDefault()}
+                          onDragEnd={() => setDragIndex(null)}
+                          className={`flex items-center gap-3 px-3 py-2 bg-white cursor-move transition-opacity ${
+                            dragIndex === index ? 'opacity-40' : 'hover:bg-gray-50'
+                          }`}
+                        >
+                          <GripVertical className="w-4 h-4 text-gray-300 flex-shrink-0" />
+                          <span className="w-6 text-sm text-gray-400">{index + 1}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">{artifact.name}</p>
+                            {artifact.location && (
+                              <p className="text-xs text-gray-500">{artifact.location}</p>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => toggleArtifact(artifact)}
+                            className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>

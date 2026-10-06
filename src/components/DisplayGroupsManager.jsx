@@ -31,7 +31,8 @@ const DisplayGroupsManager = ({ user, isAdmin, db, collection, doc, getDocs, add
     { name: 'Red', value: '#EF4444' },
     { name: 'Pink', value: '#EC4899' },
     { name: 'Indigo', value: '#6366F1' },
-    { name: 'Gray', value: '#6B7280' }
+    { name: 'Gray', value: '#6B7280' },
+    { name: 'Slate', value: '#334155' }
   ];
 
   // Load display groups from Firestore

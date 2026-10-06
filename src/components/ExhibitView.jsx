@@ -68,9 +68,15 @@ const ExhibitView = () => {
         const artifactsData = [];
         
         for (const artifactId of exhibitData.artifactIds) {
-          const artifactDoc = await getDoc(doc(db, 'artifacts', artifactId));
-          if (artifactDoc.exists()) {
-            artifactsData.push({ id: artifactDoc.id, ...artifactDoc.data() });
+          try {
+            const artifactDoc = await getDoc(doc(db, 'artifacts', artifactId));
+            if (artifactDoc.exists()) {
+              artifactsData.push({ id: artifactDoc.id, ...artifactDoc.data() });
+            } else {
+              console.warn('Artifact not found:', artifactId);
+            }
+          } catch (err) {
+            console.warn('Artifact unreadable (permissions?):', artifactId, err.code);
           }
         }
         
@@ -190,6 +196,10 @@ const ExhibitView = () => {
     if (b === 'Unassigned') return -1;
     return a.localeCompare(b, undefined, { numeric: true });
   });
+
+    console.log('loaded:', artifacts.length, 'visible:', visibleArtifacts.length);
+  console.log('locations:', artifacts.map(a => `${a.name}|${a.location}`));
+  console.log('areas:', areaNames);
 
   const toggleArea = (area) => {
     setExpandedAreas(prev => {
@@ -312,6 +322,17 @@ const ExhibitView = () => {
             )}
           </div>
         </div>
+
+        {/* Exhibit Picture */}
+        {exhibit.exhibitPicture && (
+          <div className="mb-6">
+            <img 
+              src={exhibit.exhibitPicture} 
+              alt={exhibit.name}
+              className="w-full rounded-lg shadow-sm"
+            />
+          </div>
+        )}
         
         {/* Artifacts Section */}
         <div className="mb-6">
