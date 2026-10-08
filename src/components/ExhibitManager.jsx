@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, Edit2, Trash2, X, Save, Upload, Image as ImageIcon, 
-  Grid, List, Eye, Calendar, MapPin, Users, CheckCircle, DollarSign, GripVertical
+  Grid, List, Eye, Calendar, MapPin, Users, CheckCircle, DollarSign, GripVertical, Download
 } from 'lucide-react';
 import { db, storage } from '../firebase';
 import { 
@@ -23,9 +23,13 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
   const [uploading, setUploading] = useState(false);
   const [uploadingGalleryLayout, setUploadingGalleryLayout] = useState(false);
   const [uploadingExhibitPicture, setUploadingExhibitPicture] = useState(false);
+  const [uploadingArea, setUploadingArea] = useState(null);
+  const [expandedArea, setExpandedArea] = useState(null);
   const [viewMode, setViewMode] = useState('grid');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successAction, setSuccessAction] = useState('created');
+  const [dragAreaIndex, setDragAreaIndex] = useState(null);
+  const [dragItem, setDragItem] = useState(null); // { area, index }
   const navigate = useNavigate();
   
   // Add error modal hook
@@ -41,6 +45,8 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
     headerImage: '',
     exhibitPicture: '',
     galleryLayoutImage: '',
+    areaOrder: [],
+    areaDetails: {},
     artifactIds: [],
     featured: false,
     published: true
@@ -50,6 +56,18 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
   useEffect(() => {
     loadExhibits();
   }, [isAdmin]);
+
+  // Reconcile area order against the artifacts currently selected
+  useEffect(() => {
+    const areas = [...new Set(selectedArtifacts.map(a => a.location || 'Unassigned'))];
+    setFormData(prev => {
+      const kept = (prev.areaOrder || []).filter(a => areas.includes(a));
+      const added = areas.filter(a => !kept.includes(a));
+      const next = [...kept, ...added];
+      if (JSON.stringify(next) === JSON.stringify(prev.areaOrder || [])) return prev;
+      return { ...prev, areaOrder: next };
+    });
+  }, [selectedArtifacts]);
 
   const loadExhibits = async () => {
     try {
@@ -67,7 +85,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
     }
   };
 
-    // Sync each affected artifact's visibility against one exhibit's state
+  // Sync each affected artifact's visibility against one exhibit's state
   const syncArtifactVisibility = async (exhibitId, prevIds = [], nextIds = [], isPublished = false) => {
     const touched = [...new Set([...prevIds, ...nextIds])];
     if (touched.length === 0) return;
@@ -151,6 +169,46 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
     }
   };
 
+  // Handle a case/area photo upload
+  const handleAreaImageUpload = async (area, e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploadingArea(area);
+
+    try {
+      const timestamp = Date.now();
+      const filename = `exhibits/cases/${timestamp}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+      const storageRef = ref(storage, filename);
+      const snapshot = await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+
+      setFormData(prev => ({
+        ...prev,
+        areaDetails: {
+          ...(prev.areaDetails || {}),
+          [area]: { ...((prev.areaDetails || {})[area] || {}), image: downloadURL }
+        }
+      }));
+    } catch (error) {
+      console.error('Error uploading case photo:', error);
+      showErrorModal('Error uploading case photo. Please try again.');
+    } finally {
+      setUploadingArea(null);
+    }
+  };
+
+  // Update a case/area description
+  const setAreaDescription = (area, description) => {
+    setFormData(prev => ({
+      ...prev,
+      areaDetails: {
+        ...(prev.areaDetails || {}),
+        [area]: { ...((prev.areaDetails || {})[area] || {}), description }
+      }
+    }));
+  };
+
   // Handle exhibit save
   const handleSave = async () => {
     if (!formData.name || !formData.description) {
@@ -180,8 +238,17 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
       } else {
         exhibitData.createdAt = new Date();
         exhibitData.createdBy = user.uid;
-        await addDoc(collection(db, 'exhibits'), exhibitData);
+        const exhibitRef = await addDoc(collection(db, 'exhibits'), exhibitData);
+        savedId = exhibitRef.id;
       }
+
+      // Keep artifact visibility in step with this exhibit
+      await syncArtifactVisibility(
+        savedId,
+        prevIds,
+        nextIds,
+        exhibitData.published !== false
+      );
       
       await loadExhibits();
       
@@ -204,8 +271,8 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this exhibit?')) {
       try {
-        const exhibit = exhibits.find(e => e.id === id);                              
-        await syncArtifactVisibility(id, exhibit?.artifactIds || [], [], false);      
+        const exhibit = exhibits.find(e => e.id === id);
+        await syncArtifactVisibility(id, exhibit?.artifactIds || [], [], false);
         await deleteDoc(doc(db, 'exhibits', id));
         await loadExhibits();
       } catch (error) {
@@ -227,6 +294,8 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
       headerImage: exhibit.headerImage || '',
       exhibitPicture: exhibit.exhibitPicture || '',
       galleryLayoutImage: exhibit.galleryLayoutImage || '',
+      areaOrder: exhibit.areaOrder || [],
+      areaDetails: exhibit.areaDetails || {},
       artifactIds: exhibit.artifactIds || [],
       featured: exhibit.featured || false,
       published: exhibit.published !== undefined ? exhibit.published : true
@@ -254,6 +323,8 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
       headerImage: '',
       exhibitPicture: '',
       galleryLayoutImage: '',
+      areaOrder: [],
+      areaDetails: {},
       artifactIds: [],
       featured: false,
       published: true
@@ -262,20 +333,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
     setEditingId(null);
     setShowForm(false);
     setShowArtifactSelector(false);
-  };
-
-  // Reorder artifacts within the exhibit
-  const [dragIndex, setDragIndex] = useState(null);
-
-  const handleDragEnter = (index) => {
-    if (dragIndex === null || dragIndex === index) return;
-    setSelectedArtifacts(prev => {
-      const next = [...prev];
-      const [moved] = next.splice(dragIndex, 1);
-      next.splice(index, 0, moved);
-      return next;
-    });
-    setDragIndex(index);
+    setExpandedArea(null);
   };
 
   // Add/remove artifacts from exhibit
@@ -286,6 +344,36 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
     } else {
       setSelectedArtifacts([...selectedArtifacts, artifact]);
     }
+  };
+
+  // Selected artifacts grouped by area, in the current case order
+  const artifactsByArea = (formData.areaOrder || []).reduce((acc, area) => {
+    acc[area] = selectedArtifacts.filter(a => (a.location || 'Unassigned') === area);
+    return acc;
+  }, {});
+
+  // Drag a case to a new position
+  const handleAreaDragEnter = (index) => {
+    if (dragItem) return; // an artifact is being dragged, not a case
+    if (dragAreaIndex === null || dragAreaIndex === index) return;
+    setFormData(prev => {
+      const next = [...(prev.areaOrder || [])];
+      const [moved] = next.splice(dragAreaIndex, 1);
+      next.splice(index, 0, moved);
+      return { ...prev, areaOrder: next };
+    });
+    setDragAreaIndex(index);
+  };
+
+  // Drag an artifact to a new position within its own case
+  const handleItemDragEnter = (area, index) => {
+    if (!dragItem || dragItem.area !== area || dragItem.index === index) return;
+    const list = [...(artifactsByArea[area] || [])];
+    const [moved] = list.splice(dragItem.index, 1);
+    list.splice(index, 0, moved);
+    const byArea = { ...artifactsByArea, [area]: list };
+    setSelectedArtifacts((formData.areaOrder || []).flatMap(a => byArea[a] || []));
+    setDragItem({ area, index });
   };
 
   // Filter artifacts for selection
@@ -310,6 +398,25 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
       }
       return total;
     }, 0);
+  };
+
+  // Export exhibit artifacts as CSV
+  const exportExhibitCSV = (exhibit) => {
+    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+
+    const rows = (exhibit.artifactIds || [])
+      .map(id => artifacts.find(a => a.id === id))
+      .filter(Boolean)
+      .map(a => [esc(a.name), esc(a.value)].join(','));
+
+    const csv = ['Name,Value', ...rows].join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${exhibit.name.replace(/[^a-z0-9]+/gi, '_')}_artifacts.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -341,25 +448,25 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {exhibits.map(exhibit => (
             <div key={exhibit.id} className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
-{exhibit.headerImage && (
-  <div className="h-48 sm:h-48 overflow-hidden relative bg-gray-100">
-    <img
-      src={exhibit.headerImage}
-      alt={exhibit.name}
-      className="w-full h-full object-contain sm:object-cover"
-    />
-    {exhibit.featured && (
-      <span className="absolute top-2 left-2 px-2 py-1 bg-yellow-500 text-white text-xs font-medium rounded">
-        Featured
-      </span>
-    )}
-    {!exhibit.published && (
-      <span className="absolute top-2 right-2 px-2 py-1 bg-gray-500 text-white text-xs font-medium rounded">
-        Draft
-      </span>
-    )}
-  </div>
-)}
+              {exhibit.headerImage && (
+                <div className="h-48 sm:h-48 overflow-hidden relative bg-gray-100">
+                  <img
+                    src={exhibit.headerImage}
+                    alt={exhibit.name}
+                    className="w-full h-full object-contain sm:object-cover"
+                  />
+                  {exhibit.featured && (
+                    <span className="absolute top-2 left-2 px-2 py-1 bg-yellow-500 text-white text-xs font-medium rounded">
+                      Featured
+                    </span>
+                  )}
+                  {!exhibit.published && (
+                    <span className="absolute top-2 right-2 px-2 py-1 bg-gray-500 text-white text-xs font-medium rounded">
+                      Draft
+                    </span>
+                  )}
+                </div>
+              )}
               
               <div className="p-4">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">{exhibit.name}</h3>
@@ -414,6 +521,13 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                         className="px-3 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors"
                       >
                         Delete
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); exportExhibitCSV(exhibit); }}
+                        className="p-2 text-gray-600 hover:bg-gray-50 rounded"
+                        title="Export to CSV"
+                      >
+                        <Download className="w-4 h-4" />
                       </button>
                     </>
                   )}
@@ -494,6 +608,13 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                             className="text-red-600 hover:text-red-800"
                           >
                             <Trash2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => exportExhibitCSV(exhibit)}
+                            className="text-gray-600 hover:text-gray-900"
+                            title="Export to CSV"
+                          >
+                            <Download className="w-4 h-4" />
                           </button>
                         </>
                       )}
@@ -666,8 +787,9 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                         </div>
                       </label>
                     </div>
+                  </div>
 
-                    <div className="col-span-2">
+                  <div className="col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Exhibit Picture
                     </label>
@@ -696,7 +818,6 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                         </div>
                       </label>
                     </div>
-                  </div>
                   </div>
                 </div>
 
@@ -786,40 +907,126 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                     </div>
                   )}
 
-                  {selectedArtifacts.length > 0 && (
-                    <div className="mt-3 border rounded-lg divide-y">
-                      <div className="px-3 py-2 bg-gray-50 text-xs font-medium text-gray-600">
-                        Display order — drag to rearrange
-                      </div>
-                      {selectedArtifacts.map((artifact, index) => (
-                        <div
-                          key={artifact.id}
-                          draggable
-                          onDragStart={() => setDragIndex(index)}
-                          onDragEnter={() => handleDragEnter(index)}
-                          onDragOver={(e) => e.preventDefault()}
-                          onDragEnd={() => setDragIndex(null)}
-                          className={`flex items-center gap-3 px-3 py-2 bg-white cursor-move transition-opacity ${
-                            dragIndex === index ? 'opacity-40' : 'hover:bg-gray-50'
-                          }`}
-                        >
-                          <GripVertical className="w-4 h-4 text-gray-300 flex-shrink-0" />
-                          <span className="w-6 text-sm text-gray-400">{index + 1}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">{artifact.name}</p>
-                            {artifact.location && (
-                              <p className="text-xs text-gray-500">{artifact.location}</p>
-                            )}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => toggleArtifact(artifact)}
-                            className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600"
+                  {/* Hierarchical display order: cases, each holding its artifacts */}
+                  {(formData.areaOrder || []).length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      <p className="text-xs font-medium text-gray-600">
+                        Display order — drag cases and artifacts to rearrange
+                      </p>
+                      {formData.areaOrder.map((area, areaIndex) => {
+                        const details = (formData.areaDetails || {})[area] || {};
+                        const isExpanded = expandedArea === area;
+
+                        return (
+                          <div
+                            key={area}
+                            className={`border rounded-lg overflow-hidden ${
+                              dragAreaIndex === areaIndex ? 'opacity-40' : ''
+                            }`}
                           >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))}
+                            <div
+                              draggable
+                              onDragStart={() => setDragAreaIndex(areaIndex)}
+                              onDragEnter={() => handleAreaDragEnter(areaIndex)}
+                              onDragOver={(e) => e.preventDefault()}
+                              onDragEnd={() => setDragAreaIndex(null)}
+                              className="flex items-center gap-2 px-3 py-2 bg-gray-100 cursor-move hover:bg-gray-200"
+                            >
+                              <GripVertical className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                              <span className="flex-1 text-sm font-semibold text-gray-900">{area}</span>
+                              {details.image && (
+                                <ImageIcon className="w-4 h-4 text-green-600" title="Has case photo" />
+                              )}
+                              <span className="text-xs text-gray-500">
+                                {(artifactsByArea[area] || []).length}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExpandedArea(isExpanded ? null : area);
+                                }}
+                                className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                              >
+                                {isExpanded ? 'Done' : 'Photo & text'}
+                              </button>
+                            </div>
+
+                            {isExpanded && (
+                              <div className="px-3 py-3 bg-gray-50 border-b space-y-3">
+                                {details.image && (
+                                  <img
+                                    src={details.image}
+                                    alt={area}
+                                    className="w-full h-40 object-cover rounded"
+                                  />
+                                )}
+                                <label className="block">
+                                  <span className="sr-only">Choose case photo</span>
+                                  <div className="w-full px-3 py-2 border-2 border-dashed border-gray-300 rounded-lg text-center cursor-pointer hover:border-gray-400 transition-colors bg-white">
+                                    <Upload className="w-5 h-5 mx-auto mb-1 text-gray-400" />
+                                    <span className="text-sm text-gray-600">
+                                      {uploadingArea === area
+                                        ? 'Uploading...'
+                                        : details.image ? 'Replace case photo' : 'Upload case photo'}
+                                    </span>
+                                    <input
+                                      type="file"
+                                      className="hidden"
+                                      accept="image/*"
+                                      onChange={(e) => handleAreaImageUpload(area, e)}
+                                      disabled={uploadingArea === area}
+                                    />
+                                  </div>
+                                </label>
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                                    Case description
+                                  </label>
+                                  <textarea
+                                    value={details.description || ''}
+                                    onChange={(e) => setAreaDescription(area, e.target.value)}
+                                    rows={5}
+                                    placeholder="What's in this case and why it matters..."
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="divide-y">
+                              {(artifactsByArea[area] || []).map((artifact, index) => (
+                                <div
+                                  key={artifact.id}
+                                  draggable
+                                  onDragStart={(e) => { e.stopPropagation(); setDragItem({ area, index }); }}
+                                  onDragEnter={(e) => { e.stopPropagation(); handleItemDragEnter(area, index); }}
+                                  onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                  onDragEnd={(e) => { e.stopPropagation(); setDragItem(null); }}
+                                  className={`flex items-center gap-3 px-3 py-2 pl-8 bg-white cursor-move ${
+                                    dragItem?.area === area && dragItem?.index === index
+                                      ? 'opacity-40'
+                                      : 'hover:bg-gray-50'
+                                  }`}
+                                >
+                                  <GripVertical className="w-4 h-4 text-gray-300 flex-shrink-0" />
+                                  <span className="w-5 text-xs text-gray-400">{index + 1}</span>
+                                  <p className="flex-1 min-w-0 text-sm text-gray-900 truncate">
+                                    {artifact.name}
+                                  </p>
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleArtifact(artifact)}
+                                    className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -878,7 +1085,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
         />
       )}
 
-      <style jsx>{`
+      <style>{`
         @keyframes fade-in-up {
           0% {
             opacity: 0;

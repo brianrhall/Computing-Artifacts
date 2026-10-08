@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { 
   Calendar, MapPin, User, ArrowLeft, Grid, List, 
   Camera, Clock, DollarSign, Shield, Eye, Map, X,
@@ -16,6 +16,8 @@ const ExhibitView = () => {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('grid');
   const [filterGroup, setFilterGroup] = useState('all');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedArea = searchParams.get('case');
   const [expandedAreas, setExpandedAreas] = useState(new Set());
   const [selectedArtifact, setSelectedArtifact] = useState(null);
   const [user, setUser] = useState(null);
@@ -191,7 +193,13 @@ const ExhibitView = () => {
   }, {});
 
   // Area headings, naturally sorted, with Unassigned pushed to the end
+  const order = exhibit.areaOrder || [];
   const areaNames = Object.keys(artifactsByArea).sort((a, b) => {
+    const ia = order.indexOf(a);
+    const ib = order.indexOf(b);
+    if (ia !== -1 && ib !== -1) return ia - ib;
+    if (ia !== -1) return -1;
+    if (ib !== -1) return 1;
     if (a === 'Unassigned') return 1;
     if (b === 'Unassigned') return -1;
     return a.localeCompare(b, undefined, { numeric: true });
@@ -376,70 +384,91 @@ const ExhibitView = () => {
               <p className="text-gray-600">No artifacts have been added to this exhibit yet.</p>
             </div>
           ) : viewMode === 'grid' ? (
-            <div className="space-y-8">
-              {areaNames.length === 0 ? (
-                <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-                  <p className="text-gray-600">No artifacts in this display group.</p>
-                </div>
-              ) : areaNames.map(area => {
-                const isCollapsed = !expandedAreas.has(area);
-                return (
-                  <div key={area}>
-                    <button
-                      onClick={() => toggleArea(area)}
-                      className="w-full flex items-center gap-2 text-left mb-3 pb-2 border-b group"
-                      aria-expanded={!isCollapsed}
+            selectedArea === null ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {areaNames.map(area => {
+                  const details = (exhibit.areaDetails || {})[area] || {};
+                  return (
+                    <div
+                      key={area}
+                      onClick={() => setSearchParams({ case: area })}
+                      className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer overflow-hidden"
                     >
-                      {isCollapsed ? (
-                        <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-gray-600" />
+                      {details.image ? (
+                        <div className="aspect-[4/3] bg-gray-100 overflow-hidden">
+                          <img src={details.image} alt={area} className="w-full h-full object-cover" />
+                        </div>
                       ) : (
-                        <ChevronDown className="w-5 h-5 text-gray-400 group-hover:text-gray-600" />
+                        <div className="aspect-[4/3] bg-gray-100 flex items-center justify-center">
+                          <Camera className="w-12 h-12 text-gray-300" />
+                        </div>
                       )}
-                      <h3 className="text-lg font-semibold text-gray-900">{area}</h3>
-                      <span className="text-sm font-normal text-gray-500">
-                        ({artifactsByArea[area].length})
-                      </span>
-                    </button>
-
-                    {!isCollapsed && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {artifactsByArea[area].map((artifact) => (
-                          <div 
-                            key={artifact.id} 
-                            className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                            onClick={() => setSelectedArtifact(artifact)}
-                          >
-                            {artifact.images && artifact.images.length > 0 ? (
-                              <div className="aspect-[3/4] bg-gray-100 rounded-t-lg overflow-hidden">
-                                <img 
-                                  src={artifact.images[0]} 
-                                  alt={artifact.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                            ) : (
-                              <div className="aspect-[3/4] bg-gray-100 rounded-t-lg flex items-center justify-center">
-                                <Camera className="w-12 h-12 text-gray-300" />
-                              </div>
-                            )}
-                            
-                            <div className="p-4">
-                              <h3 className="font-semibold text-gray-900 mb-1">{artifact.name}</h3>
-                              {artifact.manufacturer && (
-                                <p className="text-sm text-gray-600 mb-1">{artifact.manufacturer}</p>
-                              )}
-                              {artifact.year && (
-                                <p className="text-sm text-gray-500">{artifact.year}</p>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                      <div className="p-4">
+                        <h3 className="font-semibold text-gray-900 mb-1">{area}</h3>
+                        <p className="text-sm text-gray-500 mb-2">
+                          {artifactsByArea[area].length} artifact{artifactsByArea[area].length === 1 ? '' : 's'}
+                        </p>
+                        {details.description && (
+                          <p className="text-sm text-gray-600 line-clamp-3">{details.description}</p>
+                        )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div>
+                <button
+                  onClick={() => setSearchParams({})}
+                  className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  All cases
+                </button>
+
+                {(() => {
+                  const details = (exhibit.areaDetails || {})[selectedArea] || {};
+                  return (
+                    <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+                      <h3 className="text-2xl font-bold text-gray-900 mb-3">{selectedArea}</h3>
+                      {details.image && (
+                        <img src={details.image} alt={selectedArea} className="w-full rounded-lg mb-4" />
+                      )}
+                      {details.description && (
+                        <p className="text-gray-700 whitespace-pre-line">{details.description}</p>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {(artifactsByArea[selectedArea] || []).map((artifact) => (
+                    <div
+                      key={artifact.id}
+                      className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => setSelectedArtifact(artifact)}
+                    >
+                      {artifact.images && artifact.images.length > 0 ? (
+                        <div className="aspect-[3/4] bg-gray-100 rounded-t-lg overflow-hidden">
+                          <img src={artifact.images[0]} alt={artifact.name} className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className="aspect-[3/4] bg-gray-100 rounded-t-lg flex items-center justify-center">
+                          <Camera className="w-12 h-12 text-gray-300" />
+                        </div>
+                      )}
+                      <div className="p-4">
+                        <h3 className="font-semibold text-gray-900 mb-1">{artifact.name}</h3>
+                        {artifact.manufacturer && (
+                          <p className="text-sm text-gray-600 mb-1">{artifact.manufacturer}</p>
+                        )}
+                        {artifact.year && <p className="text-sm text-gray-500">{artifact.year}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
           ) : (
             <div className="bg-white rounded-lg shadow-sm overflow-hidden">
               <table className="w-full">
