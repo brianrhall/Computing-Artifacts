@@ -447,9 +447,16 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
       {viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {exhibits.map(exhibit => (
-            <div key={exhibit.id} className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
+            <div
+              key={exhibit.id}
+              className={`bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow ${
+                exhibit.featured && !isAdmin ? 'col-span-full' : ''
+              }`}
+            >
               {exhibit.headerImage && (
-                <div className="h-48 sm:h-48 overflow-hidden relative bg-gray-100">
+                <div className={`overflow-hidden relative bg-gray-100 ${
+                  exhibit.featured && !isAdmin ? 'h-64 md:h-80' : 'h-48 sm:h-48'
+                }`}>
                   <img
                     src={exhibit.headerImage}
                     alt={exhibit.name}
