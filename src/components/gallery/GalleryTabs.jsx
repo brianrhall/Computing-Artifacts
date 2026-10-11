@@ -34,7 +34,7 @@ const GalleryTabs = ({ activeTab, setActiveTab, isAdmin }) => {
       id: 'auctions',
       label: 'Auctions',
       icon: Gavel,
-      visible: true
+      visible: isAdmin
     },
     {
       id: 'displayGroups',

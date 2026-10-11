@@ -159,7 +159,7 @@ const ComputingGalleryManager = () => {
 
     const allowedTabs = isAdmin
       ? ['artifacts', 'exhibits', 'displayGroups', 'auctions']
-      : ['exhibits', 'auctions'];
+      : ['exhibits'];
 
     // Set active tab based on URL parameter
     if (tabParam && allowedTabs.includes(tabParam)) {
@@ -169,7 +169,7 @@ const ComputingGalleryManager = () => {
 
   // Regular users reach artifacts only through a published exhibit
   useEffect(() => {
-    if (authChecked && !isAdmin && (activeTab === 'artifacts' || activeTab === 'displayGroups')) {
+    if (authChecked && !isAdmin && (activeTab === 'artifacts' || activeTab === 'displayGroups' || activeTab === 'auctions')) {
       setActiveTab('exhibits');
       navigate('/?tab=exhibits', { replace: true });
     }
@@ -472,7 +472,7 @@ const ComputingGalleryManager = () => {
           </>
         ) : activeTab === 'exhibits' ? (
           <ExhibitManager user={user} isAdmin={isAdmin} artifacts={artifacts} />
-        ) : activeTab === 'auctions' ? (
+        ) : activeTab === 'auctions' && isAdmin  ? (
           <AuctionManager 
             user={user} 
             isAdmin={isAdmin} 
