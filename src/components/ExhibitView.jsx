@@ -56,33 +56,37 @@ const ExhibitView = () => {
     try {
       // Load exhibit data
       const exhibitDoc = await getDoc(doc(db, 'exhibits', exhibitId));
-      
+
       if (!exhibitDoc.exists()) {
         setLoading(false);
         return;
       }
-      
+
       const exhibitData = { id: exhibitDoc.id, ...exhibitDoc.data() };
       setExhibit(exhibitData);
-      
-      // Load artifacts in the exhibit
+
+      // Load artifacts with all requests in flight at once, rather than
+      // waiting for each round trip in turn. allSettled keeps one bad
+      // artifact (deleted, or blocked by rules) from killing the batch.
       if (exhibitData.artifactIds && exhibitData.artifactIds.length > 0) {
-        const artifactsData = [];
-        
-        for (const artifactId of exhibitData.artifactIds) {
-          try {
-            const artifactDoc = await getDoc(doc(db, 'artifacts', artifactId));
-            if (artifactDoc.exists()) {
-              artifactsData.push({ id: artifactDoc.id, ...artifactDoc.data() });
-            } else {
-              console.warn('Artifact not found:', artifactId);
-            }
-          } catch (err) {
-            console.warn('Artifact unreadable (permissions?):', artifactId, err.code);
+        const results = await Promise.allSettled(
+          exhibitData.artifactIds.map(id => getDoc(doc(db, 'artifacts', id)))
+        );
+
+        results.forEach((r, i) => {
+          const id = exhibitData.artifactIds[i];
+          if (r.status === 'rejected') {
+            console.warn('Artifact unreadable (permissions?):', id, r.reason?.code);
+          } else if (!r.value.exists()) {
+            console.warn('Artifact not found:', id);
           }
-        }
-        
-        setArtifacts(artifactsData);
+        });
+
+        setArtifacts(
+          results
+            .filter(r => r.status === 'fulfilled' && r.value.exists())
+            .map(r => ({ id: r.value.id, ...r.value.data() }))
+        );
       }
     } catch (error) {
       console.error('Error loading exhibit:', error);
@@ -90,17 +94,6 @@ const ExhibitView = () => {
       setLoading(false);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Clock className="w-12 h-12 text-gray-400 animate-pulse mx-auto mb-4" />
-          <p className="text-gray-600">Loading exhibit...</p>
-        </div>
-      </div>
-    );
-  }
 
   if (!exhibit) {
     return (

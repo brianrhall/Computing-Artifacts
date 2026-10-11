@@ -97,7 +97,7 @@ const GalleryHeader = ({
               isAdmin 
                 ? 'Admin Dashboard - Manage your computing history collection' 
                 : 'Visitor View - Browse the collection'
-            ) : 'Public Gallery - Sign in for more features'}
+            ) : 'Public Gallery - Browse the exhibit'}
           </p>
         </div>
         
