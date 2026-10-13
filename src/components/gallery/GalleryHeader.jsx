@@ -17,7 +17,7 @@ const GalleryHeader = ({
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              Computing Artifacts
+              Curaffect
             </h1>
             <p className="text-sm text-gray-600">
               {user ? (isAdmin ? 'Admin' : 'Visitor') : 'Gallery'}
@@ -90,7 +90,7 @@ const GalleryHeader = ({
       <div className="hidden sm:flex items-center justify-between">
         <div>
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Computing Artifacts Gallery
+            Curaffect
           </h1>
           <p className="text-gray-600">
             {user ? (
