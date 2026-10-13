@@ -15,6 +15,7 @@ const ExhibitView = () => {
   const [showDescription, setShowDescription] = useState(false);
   const [artifacts, setArtifacts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const [viewMode, setViewMode] = useState('grid');
   const [filterGroup, setFilterGroup] = useState('all');
   const [searchParams, setSearchParams] = useSearchParams();
@@ -49,6 +50,9 @@ const ExhibitView = () => {
 
   useEffect(() => {
     if (exhibitId) {
+      setLoading(true);
+      setExhibit(null);
+      setNotFound(false);
       loadExhibit();
     }
   }, [exhibitId]);
@@ -59,7 +63,7 @@ const ExhibitView = () => {
       const exhibitDoc = await getDoc(doc(db, 'exhibits', exhibitId));
 
       if (!exhibitDoc.exists()) {
-        setLoading(false);
+        setNotFound(true);
         return;
       }
 
@@ -96,7 +100,7 @@ const ExhibitView = () => {
     }
   };
 
-  if (!exhibit) {
+  if (notFound) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -109,6 +113,10 @@ const ExhibitView = () => {
         </div>
       </div>
     );
+  }
+
+  if (!exhibit) {
+    return null;
   }
 
   // Check if exhibit is unpublished and user is not admin
