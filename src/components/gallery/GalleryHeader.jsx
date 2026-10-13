@@ -90,12 +90,12 @@ const GalleryHeader = ({
       <div className="hidden sm:flex items-center justify-between">
         <div>
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Curaffect
+            Curaffect - Exhibits that Move
           </h1>
           <p className="text-gray-600">
             {user ? (
               isAdmin 
-                ? 'Admin Dashboard - Manage your computing history collection' 
+                ? 'Admin Dashboard - Manage your collection' 
                 : 'Visitor View - Browse the collection'
             ) : 'Public Gallery - Browse the exhibit'}
           </p>
