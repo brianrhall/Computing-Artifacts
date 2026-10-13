@@ -3,7 +3,7 @@ import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { 
   Calendar, MapPin, User, ArrowLeft, Grid, List, 
   Camera, Clock, DollarSign, Shield, Eye, Map, X,
-  ChevronDown, ChevronRight
+  ChevronDown, ChevronRight, FileText
 } from 'lucide-react';
 import { db, auth } from '../firebase';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
@@ -12,6 +12,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 const ExhibitView = () => {
   const {exhibitId } = useParams();
   const [exhibit, setExhibit] = useState(null);
+  const [showDescription, setShowDescription] = useState(false);
   const [artifacts, setArtifacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('grid');
@@ -240,9 +241,6 @@ const ExhibitView = () => {
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
           <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
             <div className="max-w-7xl mx-auto">
-              <h1 className="text-3xl md:text-5xl font-bold text-white mb-2">
-                {exhibit.name}
-              </h1>
               {exhibit.featured && (
                 <span className="inline-block px-3 py-1 bg-yellow-500 text-white text-sm font-medium rounded">
                   Featured Exhibit
@@ -268,10 +266,12 @@ const ExhibitView = () => {
           {!exhibit.headerImage && (
             <h1 className="text-3xl font-bold text-gray-900 mb-4">{exhibit.name}</h1>
           )}
+
+          {exhibit.overview && (
+            <p className="text-gray-700 text-lg mb-4">{exhibit.overview}</p>
+          )}
           
-          <p className="text-gray-700 text-lg mb-6">{exhibit.description}</p>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+          <div className="flex flex-wrap justify-between gap-x-8 gap-y-4 text-sm">
             {(exhibit.startDate || exhibit.endDate) && (
               <div className="flex items-start gap-3">
                 <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
@@ -318,6 +318,21 @@ const ExhibitView = () => {
                   >
                     View floor plan
                   </a>
+                </div>
+              </div>
+            )}
+
+        {exhibit.description && (
+              <div className="flex items-start gap-3">
+                <FileText className="w-5 h-5 text-gray-400 mt-0.5" />
+                <div>
+                  <p className="font-medium text-gray-900">About this Exhibit</p>
+                  <button
+                    onClick={() => setShowDescription(true)}
+                    className="text-blue-600 hover:text-blue-800 underline"
+                  >
+                    Read more
+                  </button>
                 </div>
               </div>
             )}
@@ -576,6 +591,31 @@ const ExhibitView = () => {
                   )}
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDescription && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          onClick={() => setShowDescription(false)}
+        >
+          <div
+            className="bg-white rounded-lg w-full max-w-2xl max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex items-start justify-between mb-4">
+                <h2 className="text-2xl font-bold text-gray-900">{exhibit.name}</h2>
+                <button
+                  onClick={() => setShowDescription(false)}
+                  className="p-2 hover:bg-gray-100 rounded-full"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-gray-700 whitespace-pre-line">{exhibit.description}</p>
             </div>
           </div>
         </div>

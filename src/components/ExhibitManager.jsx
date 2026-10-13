@@ -37,6 +37,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
   
   const [formData, setFormData] = useState({
     name: '',
+    overview: '',
     description: '',
     startDate: '',
     endDate: '',
@@ -286,6 +287,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
   const handleEdit = async (exhibit) => {
     setFormData({
       name: exhibit.name || '',
+      overview: exhibit.overview || '',
       description: exhibit.description || '',
       startDate: exhibit.startDate || '',
       endDate: exhibit.endDate || '',
@@ -315,6 +317,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
   const resetForm = () => {
     setFormData({
       name: '',
+      overview: '',
       description: '',
       startDate: '',
       endDate: '',
@@ -477,7 +480,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
               
               <div className="p-4">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">{exhibit.name}</h3>
-                <p className="text-sm text-gray-600 line-clamp-2 mb-3">{exhibit.description}</p>
+                <p className="text-sm text-gray-600 line-clamp-2 mb-3">{exhibit.overview}</p>
                 
                 <div className="space-y-2 text-sm text-gray-500 mb-3">
                   {exhibit.startDate && (
@@ -563,7 +566,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                   <td className="px-4 py-3">
                     <div>
                       <div className="font-medium text-gray-900">{exhibit.name}</div>
-                      <div className="text-sm text-gray-500 line-clamp-1">{exhibit.description}</div>
+                      <div className="text-sm text-gray-500 line-clamp-1">{exhibit.overview}</div>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">
@@ -678,6 +681,19 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Overview <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={formData.overview}
+                    onChange={(e) => setFormData({ ...formData, overview: e.target.value })}
+                    rows={2}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
                 </div>
 
                 <div>
@@ -1049,9 +1065,9 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                   </button>
                   <button
                     onClick={handleSave}
-                    disabled={!formData.name || !formData.description}
+                    disabled={!formData.name || !formData.overview || !formData.description}
                     className={`px-6 py-2 rounded-lg ${
-                      formData.name && formData.description
+                      formData.name && formData.overview || formData.description
                         ? 'bg-blue-600 hover:bg-blue-700'
                         : 'bg-gray-400 cursor-not-allowed'
                     } text-white transition-colors flex items-center gap-2`}
