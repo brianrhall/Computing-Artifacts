@@ -9,6 +9,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../../firebase';
 import ErrorModal from '../shared/ErrorModal';
 import { useErrorModal } from '../../hooks/useErrorModal';
+import { formatDateRange } from '../../utils/dates';
 
 const AuctionManager = ({ user, isAdmin, db, collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc, query, orderBy, where, serverTimestamp }) => {
   const navigate = useNavigate();

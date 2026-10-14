@@ -12,6 +12,7 @@ import {
   addDoc, orderBy, limit, onSnapshot, serverTimestamp
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
+import { formatDateRange } from '../../utils/dates';
 
 const AuctionView = () => {
   const { auctionId } = useParams();

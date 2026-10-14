@@ -12,6 +12,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage
 import { useNavigate } from 'react-router-dom';
 import ErrorModal from './shared/ErrorModal';
 import { useErrorModal } from '../hooks/useErrorModal';
+import { formatDateRange } from '../utils/dates';
 
 const ExhibitManager = ({ user, isAdmin, artifacts }) => {
   const [exhibits, setExhibits] = useState([]);
@@ -486,10 +487,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                   {exhibit.startDate && (
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4" />
-                      <span>
-                        {new Date(exhibit.startDate).toLocaleDateString()}
-                        {exhibit.endDate && ` - ${new Date(exhibit.endDate).toLocaleDateString()}`}
-                      </span>
+                      <span>{formatDateRange(exhibit.startDate, exhibit.endDate)}</span>
                     </div>
                   )}
                   {exhibit.location && (

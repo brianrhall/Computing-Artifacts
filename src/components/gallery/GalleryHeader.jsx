@@ -1,6 +1,7 @@
 // src/components/gallery/GalleryHeader.jsx - UPDATED VERSION
 import React, { useState } from 'react';
 import { User, Shield, LogIn, LogOut, Menu, X } from 'lucide-react';
+import logo from '../../assets/curaffect-logo.png';
 
 const GalleryHeader = ({ 
   user, 
@@ -16,9 +17,11 @@ const GalleryHeader = ({
       <div className="sm:hidden">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              Curaffect
-            </h1>
+            <img 
+            src={logo} 
+            alt="Curaffect — curate what moves people" 
+            className="h-10 w-auto"
+            />
             <p className="text-sm text-gray-600">
               {user ? (isAdmin ? 'Admin' : 'Visitor') : 'Gallery'}
             </p>
@@ -89,15 +92,17 @@ const GalleryHeader = ({
       {/* Desktop Header */}
       <div className="hidden sm:flex items-center justify-between">
         <div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Curaffect - Exhibits that Move
-          </h1>
+          <img 
+            src={logo} 
+            alt="Curaffect — curate what moves people" 
+            className="h-24 w-auto mb-2"
+          />
           <p className="text-gray-600">
             {user ? (
               isAdmin 
-                ? 'Admin Dashboard - Manage your collection' 
+                ? 'Admin Dashboard - Manage collection' 
                 : 'Visitor View - Browse the collection'
-            ) : 'Public Gallery - Browse the exhibit'}
+            ) : 'Public Gallery'}
           </p>
         </div>
         

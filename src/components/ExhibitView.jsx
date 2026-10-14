@@ -8,6 +8,7 @@ import {
 import { db, auth } from '../firebase';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
+import { formatDateRange } from '../utils/dates';
 
 const ExhibitView = () => {
   const {exhibitId } = useParams();
@@ -147,18 +148,7 @@ const ExhibitView = () => {
                 <div className="bg-gray-50 rounded-lg p-4 mb-4">
                   <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
                     <Calendar className="w-4 h-4 text-gray-400" />
-                    <span>
-                      {exhibit.startDate && new Date(exhibit.startDate).toLocaleDateString('en-US', { 
-                        month: 'long', 
-                        day: 'numeric', 
-                        year: 'numeric' 
-                      })}
-                      {exhibit.endDate && ` - ${new Date(exhibit.endDate).toLocaleDateString('en-US', { 
-                        month: 'long', 
-                        day: 'numeric', 
-                        year: 'numeric' 
-                      })}`}
-                    </span>
+                    <span>{formatDateRange(exhibit.startDate, exhibit.endDate, true)}</span>
                   </div>
                 </div>
               )}
@@ -286,8 +276,7 @@ const ExhibitView = () => {
                 <div>
                   <p className="font-medium text-gray-900">Exhibition Dates</p>
                   <p className="text-gray-600">
-                    {exhibit.startDate && new Date(exhibit.startDate).toLocaleDateString()}
-                    {exhibit.endDate && ` - ${new Date(exhibit.endDate).toLocaleDateString()}`}
+                    {formatDateRange(exhibit.startDate, exhibit.endDate)}
                   </p>
                 </div>
               </div>
