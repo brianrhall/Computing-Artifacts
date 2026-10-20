@@ -6,7 +6,7 @@ import {
   ChevronDown, ChevronRight, FileText
 } from 'lucide-react';
 import { db, auth } from '../firebase';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, getDocs, collection, query, where, limit } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { formatDateRange } from '../utils/dates';
 
@@ -61,14 +61,27 @@ const ExhibitView = () => {
   const loadExhibit = async () => {
     try {
       // Load exhibit data
-      const exhibitDoc = await getDoc(doc(db, 'exhibits', exhibitId));
+      // Find the exhibit by slug, falling back to its document id
+      let exhibitDoc = null;
 
-      if (!exhibitDoc.exists()) {
+      const bySlug = await getDocs(
+        query(collection(db, 'exhibits'), where('slug', '==', exhibitId), limit(1))
+      );
+
+      if (!bySlug.empty) {
+        exhibitDoc = bySlug.docs[0];
+      } else {
+        const byId = await getDoc(doc(db, 'exhibits', exhibitId));
+        if (byId.exists()) exhibitDoc = byId;
+      }
+
+      if (!exhibitDoc) {
         setNotFound(true);
         return;
       }
 
       const exhibitData = { id: exhibitDoc.id, ...exhibitDoc.data() };
+
       setExhibit(exhibitData);
 
       // Load artifacts with all requests in flight at once, rather than

@@ -38,6 +38,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
   
   const [formData, setFormData] = useState({
     name: '',
+    slug: '',
     overview: '',
     description: '',
     startDate: '',
@@ -222,6 +223,10 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
       const exhibitData = {
         ...formData,
         artifactIds: selectedArtifacts.map(a => a.id),
+        slug: (formData.slug || formData.name)
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, ''),
         updatedAt: new Date(),
         updatedBy: user.uid
       };
@@ -288,6 +293,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
   const handleEdit = async (exhibit) => {
     setFormData({
       name: exhibit.name || '',
+      slug: exhibit.slug || '',
       overview: exhibit.overview || '',
       description: exhibit.description || '',
       startDate: exhibit.startDate || '',
@@ -318,6 +324,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
   const resetForm = () => {
     setFormData({
       name: '',
+      slug: '',
       overview: '',
       description: '',
       startDate: '',
@@ -510,7 +517,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                 
                 <div className="flex gap-2">
                   <button
-                    onClick={() => navigate(`/exhibit/${exhibit.id}`)}
+                    onClick={() => navigate(`/exhibit/${exhibit.slug || exhibit.id}`)}
                     className="flex-1 px-3 py-1 bg-gray-50 text-gray-600 rounded hover:bg-gray-100 transition-colors flex items-center justify-center gap-1"
                   >
                     <Eye className="w-4 h-4" />
@@ -598,7 +605,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => navigate(`/exhibit/${exhibit.id}`)}
+                        onClick={() => navigate(`/exhibit/${exhibit.slug || exhibit.id}`)}
                         className="text-gray-600 hover:text-gray-900"
                       >
                         <Eye className="w-4 h-4" />
@@ -678,6 +685,22 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                       onChange={(e) => setFormData({ ...formData, curator: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      URL slug
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.slug}
+                      onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                      placeholder="vintage-mainframes"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      /exhibit/{formData.slug || '...'}
+                    </p>
                   </div>
                 </div>
 
