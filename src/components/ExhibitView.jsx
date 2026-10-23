@@ -347,7 +347,7 @@ const ExhibitView = () => {
         </div>
 
         {/* Exhibit Picture */}
-        {exhibit.exhibitPicture && (
+        {!selectedArea && exhibit.exhibitPicture && (
           <div className="mb-6">
             <img 
               src={exhibit.exhibitPicture} 
@@ -449,13 +449,13 @@ const ExhibitView = () => {
                       {details.image && (
                         <img src={details.image} alt={selectedArea} className="w-full rounded-lg mb-4" />
                       )}
+                      {details.audio && (
+                        <div className="w-full mb-4">
+                          <audio controls src={details.audio} style={{ width: '100%', height: '60px' }} />
+                        </div>
+                      )}
                       {details.description && (
                         <p className="text-gray-700 whitespace-pre-line">{details.description}</p>
-                      )}
-                      {details.audio && (
-                        <div className="w-full mt-4 pb-2">
-                          <audio controls src={details.audio} style={{ width: '100%', height: '80px' }} />
-                        </div>
                       )}
                     </div>
                   );
