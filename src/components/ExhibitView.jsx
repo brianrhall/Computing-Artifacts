@@ -455,6 +455,9 @@ const ExhibitView = () => {
                       {details.description && (
                         <p className="text-gray-700 whitespace-pre-line">{details.description}</p>
                       )}
+                      {details.audio && (
+                        <audio controls src={details.audio} className="w-full min-w-0 mt-4" />
+                      )}
                     </div>
                   );
                 })()}

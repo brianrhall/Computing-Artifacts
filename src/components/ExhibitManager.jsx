@@ -25,6 +25,7 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
   const [uploadingGalleryLayout, setUploadingGalleryLayout] = useState(false);
   const [uploadingExhibitPicture, setUploadingExhibitPicture] = useState(false);
   const [uploadingArea, setUploadingArea] = useState(null);
+  const [uploadingAreaAudio, setUploadingAreaAudio] = useState(null);
   const [expandedArea, setExpandedArea] = useState(null);
   const [viewMode, setViewMode] = useState('grid');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -198,6 +199,35 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
       showErrorModal('Error uploading case photo. Please try again.');
     } finally {
       setUploadingArea(null);
+    }
+  };
+
+  // Handle a case/area audio upload
+  const handleAreaAudioUpload = async (area, e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploadingAreaAudio(area);
+
+    try {
+      const timestamp = Date.now();
+      const filename = `exhibits/audio/${timestamp}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+      const storageRef = ref(storage, filename);
+      const snapshot = await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+
+      setFormData(prev => ({
+        ...prev,
+        areaDetails: {
+          ...(prev.areaDetails || {}),
+          [area]: { ...((prev.areaDetails || {})[area] || {}), audio: downloadURL }
+        }
+      }));
+    } catch (error) {
+      console.error('Error uploading case audio:', error);
+      showErrorModal('Error uploading case audio. Please try again.');
+    } finally {
+      setUploadingAreaAudio(null);
     }
   };
 
@@ -1034,6 +1064,32 @@ const ExhibitManager = ({ user, isAdmin, artifacts }) => {
                                     placeholder="What's in this case and why it matters..."
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                                   />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                                    Audio description
+                                  </label>
+                                  {details.audio && (
+                                    <audio controls src={details.audio} className="w-full min-w-0 mb-2" />
+                                  )}
+                                  <label className="block">
+                                    <span className="sr-only">Choose case audio</span>
+                                    <div className="w-full px-3 py-2 border-2 border-dashed border-gray-300 rounded-lg text-center cursor-pointer hover:border-gray-400 transition-colors bg-white">
+                                      <Upload className="w-5 h-5 mx-auto mb-1 text-gray-400" />
+                                      <span className="text-sm text-gray-600">
+                                        {uploadingAreaAudio === area
+                                          ? 'Uploading...'
+                                          : details.audio ? 'Replace audio' : 'Upload audio'}
+                                      </span>
+                                      <input
+                                        type="file"
+                                        className="hidden"
+                                        accept="audio/*,.m4a,.mp3,.mp4"
+                                        onChange={(e) => handleAreaAudioUpload(area, e)}
+                                        disabled={uploadingAreaAudio === area}
+                                      />
+                                    </div>
+                                  </label>
                                 </div>
                               </div>
                             )}
