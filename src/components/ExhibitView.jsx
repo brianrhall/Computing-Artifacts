@@ -9,6 +9,7 @@ import { db, auth } from '../firebase';
 import { doc, getDoc, getDocs, collection, query, where, limit } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { formatDateRange } from '../utils/dates';
+import logo from '../assets/curaffect-logo.png';
 
 const ExhibitView = () => {
   const {exhibitId } = useParams();
@@ -243,22 +244,18 @@ const ExhibitView = () => {
 
       {/* Header Image - Taller banner style */}
       {exhibit.headerImage && (
-        <div className="relative h-80 md:h-[28rem] bg-gray-900 overflow-hidden">
+        <div className="relative h-56 md:h-72 bg-gray-900 overflow-hidden">
           <img 
             src={exhibit.headerImage} 
             alt={exhibit.name}
             className="w-full h-full object-cover opacity-90"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-          <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
-            <div className="max-w-7xl mx-auto">
-              {exhibit.featured && (
-                <span className="inline-block px-3 py-1 bg-yellow-500 text-white text-sm font-medium rounded">
-                  Featured Exhibit
-                </span>
-              )}
-            </div>
-          </div>
+          <Link 
+            to="/?tab=exhibits" 
+            className="absolute top-8 left-4 bg-white/90 rounded-lg px-4 py-3 hover:bg-white transition-colors"
+          >
+            <img src={logo} alt="Curaffect" className="h-16 md:h-20 w-auto" />
+          </Link>
         </div>
       )}
       
@@ -456,7 +453,9 @@ const ExhibitView = () => {
                         <p className="text-gray-700 whitespace-pre-line">{details.description}</p>
                       )}
                       {details.audio && (
-                        <audio controls src={details.audio} className="w-full min-w-0 mt-4" />
+                        <div className="w-full mt-4 pb-2">
+                          <audio controls src={details.audio} style={{ width: '100%', height: '80px' }} />
+                        </div>
                       )}
                     </div>
                   );
