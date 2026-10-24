@@ -10,6 +10,7 @@ import { doc, getDoc, getDocs, collection, query, where, limit } from 'firebase/
 import { onAuthStateChanged } from 'firebase/auth';
 import { formatDateRange } from '../utils/dates';
 import logo from '../assets/curaffect-logo.png';
+import icon from '../assets/curaffect-icon.png';
 
 const ExhibitView = () => {
   const {exhibitId } = useParams();
