@@ -255,7 +255,7 @@ const ExhibitView = () => {
             to="/?tab=exhibits" 
             className="absolute top-8 left-4 bg-white/90 rounded-lg px-4 py-3 hover:bg-white transition-colors"
           >
-            <img src={logo} alt="Curaffect" className="h-16 md:h-20 w-auto" />
+            <img src={icon} alt="Curaffect" className="h-16 md:h-20 w-auto" />
           </Link>
         </div>
       )}
